@@ -23,14 +23,20 @@ import (
 // Implementation of the interfaces in scorecard.go.
 
 type scorecardImpl struct {
-	rules []Rule
-	ctg   *CompoundTagGenerator
-	// mtx protects members below this line
-	mtx     sync.Mutex
-	current map[Tag]uint
+	// rulesMu protects rules and ctg.
+	// Those are pointers and fast to read and write, but under heavy concurrency
+	// contention becomes a problem, therefore RWMutex.
+	rulesMu sync.RWMutex
+	rules   []Rule
+	ctg     *CompoundTagGenerator
+
+	// separate mutex for current to avoid contention with reading pointers above
+	// for each rule.
+	currentMu sync.Mutex
+	current   map[Tag]uint
 }
 
-func newScorecard(rules []Rule) Scorecard {
+func getRulesAndTagGenerator(rules []Rule) ([]Rule, *CompoundTagGenerator) {
 	// Dedup the rules
 	dedupedRules := make([]Rule, 0, len(rules))
 	ruleMap := make(map[string]struct{}, len(rules))
@@ -42,29 +48,48 @@ func newScorecard(rules []Rule) Scorecard {
 		}
 	}
 
-	s := &scorecardImpl{
-		rules:   dedupedRules,
-		ctg:     NewCompoundTagGenerator(dedupedRules),
+	return dedupedRules, NewCompoundTagGenerator(dedupedRules)
+}
+
+func newScorecard(rules []Rule) Scorecard {
+	rules, ctg := getRulesAndTagGenerator(rules)
+	return &scorecardImpl{
+		rules:   rules,
+		ctg:     ctg,
 		current: make(map[Tag]uint),
 	}
-	return s
 }
 
 func (s *scorecardImpl) Rules() []Rule {
+	s.rulesMu.RLock()
+	defer s.rulesMu.RUnlock()
 	rules := make([]Rule, len(s.rules))
 	copy(rules, s.rules)
 	return rules
 }
 
-func (r *Rule) IsDefaultValue() bool {
+func (r *Rule) isDefaultValue() bool {
 	return r.Pattern == "" && r.Capacity == 0
 }
 
+func ruleFor(rules []Rule, tag Tag) Rule {
+	for _, rule := range rules {
+		if TagMatchesRule(tag, rule) {
+			return rule
+		}
+	}
+	return Rule{}
+}
+
 func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
-	allTags := s.ctg.Generate(tags)
+	s.rulesMu.RLock()
+	rules := s.rules
+	ctg := s.ctg
+	s.rulesMu.RUnlock()
+	allTags := ctg.Generate(tags)
 	allTags = append(allTags, tags...)
 	for idx, tag := range allTags {
-		rule := s.ruleFor(tag)
+		rule := ruleFor(rules, tag)
 		if s.shouldIsolateTag(tag, rule) {
 			// shouldIsolate tracks rules in the scorecard. For now, it only tracks when the rule
 			// isn't violated (i.e. doesn't hit this branch). That means we will want to untrack the
@@ -81,7 +106,19 @@ func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 		}
 	}
 	return &TrackingInfo{
-		Tracked: true, trackedTags: allTags, scorecard: s, callback: rawUntrackCallback}
+		Tracked:     true,
+		trackedTags: allTags,
+		scorecard:   s,
+		callback:    rawUntrackCallback,
+	}
+}
+
+func (s *scorecardImpl) Reconfigure(rules []Rule) {
+	rules, ctg := getRulesAndTagGenerator(rules)
+	s.rulesMu.Lock()
+	s.rules = rules
+	s.ctg = ctg
+	s.rulesMu.Unlock()
 }
 
 func rawUntrackCallback(s Scorecard, t []Tag) {
@@ -94,15 +131,6 @@ func (s *scorecardImpl) rawUntrackRequest(tags []Tag) {
 	}
 }
 
-func (s *scorecardImpl) ruleFor(tag Tag) Rule {
-	for _, rule := range s.rules {
-		if TagMatchesRule(tag, rule) {
-			return rule
-		}
-	}
-	return Rule{}
-}
-
 // Perform locking in these isolated functions.  Touching the map elsewhere is
 // discouraged in order to isolate the concurrency.
 //
@@ -113,10 +141,10 @@ func (s *scorecardImpl) ruleFor(tag Tag) Rule {
 // For a lockfree map design, or an otherwise scalable map, this should have
 // both higher throughput and lower latency.
 func (s *scorecardImpl) shouldIsolateTag(tag Tag, rule Rule) bool {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.currentMu.Lock()
+	defer s.currentMu.Unlock()
 	current := s.currentScore(tag)
-	isolate := !rule.IsDefaultValue() && current >= rule.Capacity
+	isolate := !rule.isDefaultValue() && current >= rule.Capacity
 	// overflow check
 	if current+1 < current {
 		isolate = true
@@ -128,8 +156,8 @@ func (s *scorecardImpl) shouldIsolateTag(tag Tag, rule Rule) bool {
 }
 
 func (s *scorecardImpl) removeReference(tag Tag) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.currentMu.Lock()
+	defer s.currentMu.Unlock()
 	current := s.currentScore(tag)
 	if current > 1 {
 		s.current[tag] = current - 1
@@ -147,8 +175,8 @@ func (s *scorecardImpl) currentScore(tag Tag) uint {
 
 func (s *scorecardImpl) Inspect() map[Tag]uint {
 	ret := make(map[Tag]uint)
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+	s.currentMu.Lock()
+	defer s.currentMu.Unlock()
 	for t, v := range s.current {
 		ret[t] = v
 	}
