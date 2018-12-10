@@ -220,7 +220,7 @@ func TestMultiQueue(t *testing.T) {
 	defer r2.Release()
 
 	// Unknown queue rejects
-	r3 := loadManager.GetResource(ctx, QueueName("garbage"), scorecard.NoTags())
+	r3 := loadManager.GetResource(ctx, "garbage", scorecard.NoTags())
 	require.False(t, r3.Acquired())
 }
 
@@ -326,12 +326,12 @@ func TestLoadManagerRefcounting(t *testing.T) {
 	}
 }
 
-func makeQueues(num int, capacity uint) ([]QueueName, map[QueueName]ac.AdmissionController) {
-	queueNames := make([]QueueName, num)
+func makeQueues(num int, capacity uint) ([]string, map[string]ac.AdmissionController) {
+	queueNames := make([]string, num)
 	for idx := range queueNames {
-		queueNames[idx] = QueueName(fmt.Sprintf("queue-%d", idx))
+		queueNames[idx] = fmt.Sprintf("queue-%d", idx)
 	}
-	queues := make(map[QueueName]ac.AdmissionController)
+	queues := make(map[string]ac.AdmissionController)
 	for _, queueName := range queueNames {
 		queues[queueName] = ac.NewAdmissionController(uint(capacity))
 	}

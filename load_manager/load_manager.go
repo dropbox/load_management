@@ -23,11 +23,7 @@ import (
 	"github.com/dropbox/load_management/scorecard"
 )
 
-var (
-	suspiciousQueueName = QueueName("suspicious")
-)
-
-type QueueName string
+const suspiciousQueueName = "suspicious"
 
 // A LoadManager uses AdmissionControl and Scorecard to do traffic shaping.
 //
@@ -47,7 +43,7 @@ type LoadManager struct {
 
 	// Requests go through one of the main queues and then optionally converge through the slow
 	// queue.
-	mainQueues      map[QueueName]ac.AdmissionController
+	mainQueues      map[string]ac.AdmissionController
 	suspiciousQueue ac.AdmissionController
 }
 
@@ -57,7 +53,7 @@ type LoadManager struct {
 // base tags. Thus, in general, you should only use defaultTags to match conjunctive rules (e.g.
 // source_host:XXX;query_hash:YYY) rather than bare rules.
 func NewLoadManager(
-	mainQueues map[QueueName]ac.AdmissionController,
+	mainQueues map[string]ac.AdmissionController,
 	suspiciousQueue ac.AdmissionController,
 	primaryScorecard scorecard.Scorecard,
 	canaryScorecard scorecard.Scorecard, // optional
@@ -75,9 +71,11 @@ func NewLoadManager(
 	}
 }
 
+// GetResource acquires resource from specified queue for request with provided tags.
+// If scorecard will be violated method will try to admit it to "global" suspicious queue.
 func (l *LoadManager) GetResource(
 	ctx context.Context,
-	queueName QueueName,
+	queueName string,
 	tags []scorecard.Tag) *Resource {
 
 	resource := l.getResourceInternal(ctx, queueName, tags)
@@ -106,9 +104,10 @@ func (l *LoadManager) GetResource(
 	return resource
 }
 
+// GetResourceStrict is same as GetResource but it doesn't use suspicious queue.
 func (l *LoadManager) GetResourceStrict(
 	ctx context.Context,
-	queueName QueueName,
+	queueName string,
 	tags []scorecard.Tag) *Resource {
 
 	return l.getResourceInternal(ctx, queueName, tags)
@@ -128,7 +127,7 @@ func (l *LoadManager) GetResourceStrict(
 // was due to a scorecard violation.
 func (l *LoadManager) getResourceInternal(
 	ctx context.Context,
-	queueName QueueName,
+	queueName string,
 	tags []scorecard.Tag) *Resource {
 
 	resource := &Resource{}
@@ -180,7 +179,7 @@ func (l *LoadManager) Stop() {
 // QueueInfo describes the properties of the queue in which a GetResource request waited and the
 // ticket if acquisition was successful.
 type QueueInfo struct {
-	Name     QueueName
+	Name     string
 	Capacity uint64
 	Ticket   *ac.Ticket
 }
@@ -204,6 +203,7 @@ type Resource struct {
 	CanaryTrackingInfo *scorecard.TrackingInfo
 }
 
+// Release releases resource back to load manager which returned this Resource.
 func (r *Resource) Release() {
 	if r.acquired {
 		if r.QueueInfo.Ticket != nil {

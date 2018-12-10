@@ -55,11 +55,15 @@ func NoRules() []Rule {
 }
 
 // NewScorecard creates a new scorecard.
-var NewScorecard = newScorecard
+func NewScorecard(rules []Rule) Scorecard {
+	return newScorecard(rules)
+}
 
 // NewDynamicScorecard generates a scorecard that track the scorecard configuration and transparently switch from one to
 // the next.
-var NewDynamicScorecard = newDynamicScorecard
+func NewDynamicScorecard(rules []Rule) DynamicScorecard {
+	return newScorecard(rules).(DynamicScorecard)
+}
 
 // Config describes the scorecard. For now, it includes only rules, but it can be expanded to
 // support other attributes as needed.

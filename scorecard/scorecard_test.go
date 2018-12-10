@@ -21,6 +21,7 @@ import (
 	insecure_random "math/rand"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -453,10 +454,11 @@ func concurrentTester(sc Scorecard, iters int, wg *sync.WaitGroup) {
 	tracked := make([]*TrackingInfo, 0, CONCURRENT+1)
 	for i := 0; i < iters; i++ {
 		num := insecure_random.Int63()
-		tags := make([]Tag, 3)
+		tags := make([]Tag, 4)
 		tags[0] = Tag("op:read")
 		tags[1] = Tag(fmt.Sprintf("colo:%d", num&0xffffff))
 		tags[2] = Tag(fmt.Sprintf("gid:%d", num))
+		tags[3] = Tag(fmt.Sprintf("nsid:%d", num))
 		ret := sc.TrackRequest(tags)
 		if ret.Tracked {
 			tracked = append(tracked, ret)
@@ -521,4 +523,344 @@ func (s *ScorecardSuite) TestParallel() {
 		wg.Wait()
 		require.Equal(s.T(), len(sc.Inspect()), 0, "SCORECARD HAS LEAKED")
 	}
+}
+
+func (s *ScorecardSuite) TestReconfigureIncreaseCapacity() {
+	rules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+	}
+	req1 := []Tag{"op:list"}
+	req2 := []Tag{"gid:42"}
+
+	sc := NewDynamicScorecard(rules)
+	ret1 := sc.TrackRequest(req1)
+	require.True(s.T(), ret1.Tracked)
+	ret2 := sc.TrackRequest(req2)
+	require.True(s.T(), ret2.Tracked)
+
+	newRules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 2,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+	}
+	// should be allowed with new rules
+	req3 := []Tag{"op:list"}
+	// should be rejected
+	req4 := []Tag{"gid:42"}
+	// should be also rejected
+	req5 := []Tag{"op:list"}
+
+	sc.Reconfigure(newRules)
+
+	ret3 := sc.TrackRequest(req3)
+	require.True(s.T(), ret3.Tracked)
+
+	ret4 := sc.TrackRequest(req4)
+	require.False(s.T(), ret4.Tracked)
+
+	ret5 := sc.TrackRequest(req5)
+	require.False(s.T(), ret5.Tracked)
+
+	ret1.Untrack()
+	ret2.Untrack()
+	ret3.Untrack()
+	ret4.Untrack()
+	ret5.Untrack()
+	require.Equal(s.T(), len(sc.Inspect()), 0)
+}
+
+func (s *ScorecardSuite) TestReconfigureDecreaseCapacity() {
+	rules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 2,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+	}
+	// take whole resource
+	req1 := []Tag{"op:list"}
+	req2 := []Tag{"op:list"}
+	req3 := []Tag{"gid:42"}
+
+	sc := NewDynamicScorecard(rules)
+	ret1 := sc.TrackRequest(req1)
+	require.True(s.T(), ret1.Tracked)
+	ret2 := sc.TrackRequest(req2)
+	require.True(s.T(), ret2.Tracked)
+
+	ret3 := sc.TrackRequest(req3)
+	require.True(s.T(), ret3.Tracked)
+
+	newRules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+	}
+	// should be rejected with new rules
+	req4 := []Tag{"op:list"}
+	// should be rejected
+	req5 := []Tag{"gid:42"}
+
+	sc.Reconfigure(newRules)
+
+	ret4 := sc.TrackRequest(req4)
+	require.False(s.T(), ret4.Tracked)
+
+	ret5 := sc.TrackRequest(req5)
+	require.False(s.T(), ret5.Tracked)
+
+	ret1.Untrack()
+
+	// still reject
+	req6 := []Tag{"op:list"}
+
+	ret6 := sc.TrackRequest(req6)
+	require.False(s.T(), ret6.Tracked)
+
+	ret2.Untrack()
+
+	// now ok
+	req7 := []Tag{"op:list"}
+
+	ret7 := sc.TrackRequest(req7)
+	require.True(s.T(), ret7.Tracked)
+
+	ret1.Untrack()
+	ret2.Untrack()
+	ret3.Untrack()
+	ret4.Untrack()
+	ret5.Untrack()
+	ret6.Untrack()
+	ret7.Untrack()
+	require.Equal(s.T(), len(sc.Inspect()), 0)
+}
+
+func (s *ScorecardSuite) TestReconfigureNewRule() {
+	rules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+	}
+	req1 := []Tag{"op:list"}
+	req2 := []Tag{"gid:42"}
+
+	// take new resource
+	req3 := []Tag{"new:30"}
+
+	sc := NewDynamicScorecard(rules)
+	ret1 := sc.TrackRequest(req1)
+	require.True(s.T(), ret1.Tracked)
+	ret2 := sc.TrackRequest(req2)
+	require.True(s.T(), ret2.Tracked)
+	// Request 2
+	ret3 := sc.TrackRequest(req3)
+	require.True(s.T(), ret3.Tracked)
+
+	newRules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "gid:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "new:*",
+			Capacity: 1,
+		},
+	}
+
+	// no resource under new rules
+	req4 := []Tag{"new:30"}
+	sc.Reconfigure(newRules)
+
+	ret4 := sc.TrackRequest(req4)
+	require.False(s.T(), ret4.Tracked)
+
+	ret1.Untrack()
+	ret2.Untrack()
+	ret3.Untrack()
+	ret4.Untrack()
+	require.Equal(s.T(), len(sc.Inspect()), 0)
+}
+
+func (s *ScorecardSuite) TestReconfigureDeleteRule() {
+	rules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+		{
+			Pattern:  "nsid:*;gid:*",
+			Capacity: 1,
+		},
+	}
+	req1 := []Tag{"op:list"}
+	req2 := []Tag{"nsid:abc", "gid:42"}
+
+	sc := NewDynamicScorecard(rules)
+	ret1 := sc.TrackRequest(req1)
+	require.True(s.T(), ret1.Tracked)
+	ret2 := sc.TrackRequest(req2)
+	require.True(s.T(), ret2.Tracked)
+
+	newRules := []Rule{
+		{
+			Pattern:  "op:*",
+			Capacity: 1,
+		},
+	}
+
+	// op still rejected
+	req3 := []Tag{"op:list"}
+	// nsid;gid should be allowed because there is no compound rule now
+	req4 := []Tag{"nsid:abc", "gid:42"}
+	sc.Reconfigure(newRules)
+
+	ret3 := sc.TrackRequest(req3)
+	require.False(s.T(), ret3.Tracked)
+
+	ret4 := sc.TrackRequest(req4)
+	require.True(s.T(), ret4.Tracked)
+
+	ret1.Untrack()
+	ret2.Untrack()
+	ret3.Untrack()
+	ret4.Untrack()
+	require.Equal(s.T(), len(sc.Inspect()), 0)
+}
+
+var testScorecard1 = []Rule{
+	{"op:read", 1},
+}
+
+var testScorecard13b = []Rule{
+	{"op:read", 2},
+}
+
+func (s *ScorecardSuite) TestDynamicScorecardForLeaks() {
+	const threads = 100
+	sc := NewDynamicScorecard(testScorecard1)
+	results := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(30 * time.Second)
+		close(done)
+	}()
+	for i := 0; i < threads; i++ {
+		go func(x int) {
+			for {
+				select {
+				case <-done:
+					results <- struct{}{}
+					return
+				default:
+				}
+				if x%2 == 0 {
+					sc.Reconfigure(testScorecard1)
+				} else {
+					sc.Reconfigure(testScorecard13b)
+				}
+				go func() {
+					t := sc.TrackRequest([]Tag{"op:read"})
+					if t.Tracked {
+						time.Sleep(10 * time.Millisecond)
+						t.Untrack()
+					}
+				}()
+			}
+		}(i)
+	}
+	<-done
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	for i := 0; i < threads; i++ {
+		select {
+		case <-timer.C:
+			s.T().Fatal("test appears wedged")
+		case <-results:
+		}
+	}
+}
+
+func (s *ScorecardSuite) TestReconfigureParallel() {
+	rules := []Rule{{"op:*;gid:*", 5}, {"gid:*", 5}, {"colo:*", 5}}
+	configureVariants := [][]Rule{
+		// base rules
+		rules,
+		// update rules
+		{
+			{"op:*;gid:*", 30},
+			{"gid:*", 20},
+			{"colo:*", 10},
+		},
+		// delete one rule
+		{
+			{"gid:*", 5},
+			{"colo:*", 5},
+		},
+		// add new rule
+		{
+			{"op:*;gid:*", 5},
+			{"gid:*", 5},
+			{"colo:*", 5},
+			{"nsid:*", 5},
+		},
+	}
+	sc := NewDynamicScorecard(rules)
+	wg := &sync.WaitGroup{}
+	wg.Add(PARALLEL)
+	reconfigureWg := &sync.WaitGroup{}
+	reconfigureStopCh := make(chan struct{})
+	for i := 0; i < 16; i++ {
+		reconfigureWg.Add(1)
+		go func() {
+			defer reconfigureWg.Done()
+			ticker := time.NewTicker(30 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					rulesToReconfig := configureVariants[insecure_random.Intn(len(configureVariants))]
+					sc.Reconfigure(rulesToReconfig)
+					// check Rules for races
+					_ = sc.Rules()
+				case <-reconfigureStopCh:
+					return
+				}
+			}
+		}()
+	}
+	for i := 0; i < PARALLEL; i++ {
+		go concurrentTester(sc, ITERS, wg)
+	}
+	wg.Wait()
+	close(reconfigureStopCh)
+	reconfigureWg.Wait()
 }
