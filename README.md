@@ -1,6 +1,9 @@
 Dropbox Load Management Libraries
 =================================
 
+[![Build Status](https://travis-ci.org/dropbox/load_management.svg?branch=master)](https://travis-ci.org/dropbox/load_management)
+[![GoDoc](https://godoc.org/github.com/dropbox/load_management?status.svg)](https://godoc.org/github.com/dropbox/load_management)
+
 This repository contains Go utilities for managing isolation and improving
 reliability of multi-tenant systems.  These utilities might be helpful
 additions to your production toolbox if:
