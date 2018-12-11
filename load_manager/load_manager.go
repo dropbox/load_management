@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package load_manager combines admission_control and scorecard and provides fine control over resources.
 package load_manager
 
 import (
