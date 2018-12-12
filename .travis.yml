@@ -3,8 +3,10 @@ language: go
 go:
     - "1.10.x"
     - "1.11.x"
-    - master
+
+before_script:
+    - curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH) v1.12.3
 
 script:
+    - $(go env GOPATH)/golangci-lint run
     - go test -v -race ./...
-    - test -z $(gofmt -l .)

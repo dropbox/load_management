@@ -40,7 +40,7 @@ func TestGetResource(t *testing.T) {
 		queues,
 		ac.NewAdmissionController(0),
 		scorecard.NewDynamicScorecard(
-			[]scorecard.Rule{scorecard.Rule{Pattern: string(tag), Capacity: 1}}),
+			[]scorecard.Rule{{Pattern: string(tag), Capacity: 1}}),
 		scorecard.NewDynamicScorecard(scorecard.NoRules()),
 		scorecard.NoTags(),
 	)
@@ -77,7 +77,7 @@ func TestGetResourceStrict(t *testing.T) {
 		// Slow queue has no room and is gargantuanly high so we can ensure no race.
 		ac.NewCustomAdmissionController(0, 1*time.Hour, 1*time.Hour),
 		scorecard.NewDynamicScorecard(
-			[]scorecard.Rule{scorecard.Rule{Pattern: string(tag), Capacity: 1}}),
+			[]scorecard.Rule{{Pattern: string(tag), Capacity: 1}}),
 		scorecard.NewDynamicScorecard(scorecard.NoRules()),
 		scorecard.NoTags(),
 	)
@@ -114,7 +114,7 @@ func TestDoubleRelease(t *testing.T) {
 		queues,
 		ac.NewAdmissionController(1),
 		scorecard.NewDynamicScorecard(
-			[]scorecard.Rule{scorecard.Rule{Pattern: string(tag), Capacity: 1}}),
+			[]scorecard.Rule{{Pattern: string(tag), Capacity: 1}}),
 		scorecard.NewDynamicScorecard(scorecard.NoRules()),
 		scorecard.NoTags(),
 	)
@@ -149,7 +149,7 @@ func TestDefaultTags(t *testing.T) {
 		queues,
 		ac.NewAdmissionController(0),
 		scorecard.NewDynamicScorecard(
-			[]scorecard.Rule{scorecard.Rule{Pattern: string(tag), Capacity: 1}}),
+			[]scorecard.Rule{{Pattern: string(tag), Capacity: 1}}),
 		scorecard.NewDynamicScorecard(scorecard.NoRules()),
 		[]scorecard.Tag{tag},
 	)
@@ -176,7 +176,7 @@ func TestCanary(t *testing.T) {
 		ac.NewAdmissionController(0),
 		scorecard.NewDynamicScorecard(scorecard.NoRules()),
 		scorecard.NewDynamicScorecard(
-			[]scorecard.Rule{scorecard.Rule{Pattern: string(tag), Capacity: 1}}),
+			[]scorecard.Rule{{Pattern: string(tag), Capacity: 1}}),
 		scorecard.NoTags(),
 	)
 
