@@ -10,9 +10,9 @@ import (
 func BenchmarkScorecard(b *testing.B) {
 	b.SetParallelism(16)
 	rules := [][]Rule{
-		[]Rule{{"op:*;gid:*", 5}, {"gid:*", 5}, {"colo:*", 5}},
-		[]Rule{{"op:*;gid:*", 10}, {"colo:*", 5}},
-		[]Rule{{"gid:*", 5}, {"colo:*", 5}},
+		{{"op:*;gid:*", 5}, {"gid:*", 5}, {"colo:*", 5}},
+		{{"op:*;gid:*", 10}, {"colo:*", 5}},
+		{{"gid:*", 5}, {"colo:*", 5}},
 	}
 	ops := []string{
 		"select",

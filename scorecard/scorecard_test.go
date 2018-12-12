@@ -496,7 +496,7 @@ func (s *ScorecardSuite) TestConcurrent() {
 // only dereferenced the first N-2.
 func (s *ScorecardSuite) TestParallel() {
 	sc := NewScorecard([]Rule{
-		Rule{"op:gid_create_txn;colo:*", 1},
+		{"op:gid_create_txn;colo:*", 1},
 	})
 
 	tags := []Tag{

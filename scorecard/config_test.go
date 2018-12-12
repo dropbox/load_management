@@ -25,31 +25,31 @@ import (
 func TestMutations(t *testing.T) {
 	config := Config{
 		Rules: []Rule{
-			Rule{
+			{
 				Pattern:  "rule_to_update:*",
 				Capacity: 1,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_update_duplicate:a",
 				Capacity: 2,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_delete_duplicate:b",
 				Capacity: 3,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_delete:*",
 				Capacity: 4,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_delete:b",
 				Capacity: 5,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_update_duplicate:a",
 				Capacity: 6,
 			},
-			Rule{
+			{
 				Pattern:  "rule_to_delete_duplicate:b",
 				Capacity: 7,
 			},
@@ -87,23 +87,23 @@ func TestMutations(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, []Rule{
-		Rule{
+		{
 			Pattern:  "rule_to_update:*",
 			Capacity: 10,
 		},
-		Rule{
+		{
 			Pattern:  "rule_to_update_duplicate:a",
 			Capacity: 11,
 		},
-		Rule{
+		{
 			Pattern:  "rule_to_delete:b",
 			Capacity: 5,
 		},
-		Rule{
+		{
 			Pattern:  "rule_to_update_duplicate:a",
 			Capacity: 11,
 		},
-		Rule{
+		{
 			Pattern:  "rule_to_add:*",
 			Capacity: 8,
 		},

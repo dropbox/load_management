@@ -1,0 +1,10 @@
+linters:
+    enable:
+        - gofmt
+        - megacheck
+        - golint
+        - misspell
+
+issues:
+    exclude:
+        - don't use an underscore in package name
