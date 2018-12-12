@@ -145,7 +145,7 @@ cards to say something like, `source_ip:*;handler:*,1` which prevent any handler
 from being invoked more than once concurrently from any given client host.
 
 This full example is provided in the package
-[simple](github.com/dropbox/load_management/examples/simple)
+[simple](https://github.com/dropbox/load_management/tree/master/examples/simple)
 
 Usage Details
 ======================
