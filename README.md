@@ -49,7 +49,7 @@ First, we will setup an instance of the load manager in the global state of our
 application.  This will allow us to maintain a single load manager throughout
 the lifetime of our process.  It looks something like this:
 
-```
+```go
 const mainQueueName = "main"
 
 var loadManager *load_manager.LoadManager
@@ -76,7 +76,7 @@ within our server process; we can then use the load manager to decide whether
 to accept and process traffic.  In a typical usage scenario it looks something
 like this:
 
-```
+```go
 // Sleep for 10 seconds and then returns nil.
 func Sleep(ctx context.Context, conn net.Conn, data []byte) error {
 	maybeHostPort := conn.RemoteAddr().String()
