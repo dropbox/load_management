@@ -49,9 +49,9 @@ func TestDefaultTimeout(t *testing.T) {
 	ac := NewAdmissionController(1)
 	defer ac.Stop()
 	ac.AdmitOne()
-	checkTimeout(t, ac, defaultN)
-	time.Sleep(defaultN + defaultN/10)
-	checkTimeout(t, ac, defaultN)
+	checkTimeout(t, ac, DefaultN)
+	time.Sleep(DefaultN + DefaultN/10)
+	checkTimeout(t, ac, DefaultN)
 }
 
 func TestResizeFails(t *testing.T) {

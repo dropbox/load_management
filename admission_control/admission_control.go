@@ -97,7 +97,7 @@ func (t *Ticket) Release() {
 // `parallelism` units of execution through at one time.  This uses the default
 // parameters for the admission controller, and should work fine for most RPC-based services.
 func NewAdmissionController(parallelism uint) AdmissionController {
-	return NewCustomAdmissionController(parallelism, defaultM, defaultN)
+	return NewCustomAdmissionController(parallelism, DefaultM, DefaultN)
 }
 
 // NewCustomAdmissionController creates a new admission controller that will
@@ -120,8 +120,13 @@ func NewCustomAdmissionController(parallelism uint, M, N time.Duration) Admissio
 
 // Implementation details only below this point
 
-const defaultM = 5 * time.Millisecond
-const defaultN = 100 * time.Millisecond
+const (
+	// DefaultM is default value for M for CoDel - roughly it's timeout of the queue when load is high
+	DefaultM = 5 * time.Millisecond
+	// DefaultN is default value for N for CoDel - roughly it's timeout of the queue when load is low
+	DefaultN = 100 * time.Millisecond
+)
+
 const startingQueueLen = 64
 
 const checkDebugInvariants = false
