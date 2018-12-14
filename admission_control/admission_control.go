@@ -210,11 +210,13 @@ func (ac *admissionControllerImpl) admitOneSlowPath(tk *Ticket) (rv *Ticket) {
 	}
 	timeout := ac.enqueueWaiter(w)
 	proceed := false
+	timer := time.NewTimer(timeout)
 	select {
 	case <-w.wake:
 		proceed = true
-	case <-time.After(timeout):
+	case <-timer.C:
 	}
+	timer.Stop()
 	ac.removeWaiter(w)
 	// Check for the race between our timeout above and the removeWaiter call.
 	if !proceed {
