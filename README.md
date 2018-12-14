@@ -79,8 +79,8 @@ like this:
 ```go
 // Sleep for 10 seconds and then returns nil.
 func Sleep(ctx context.Context, conn net.Conn, data []byte) error {
-	maybeHostPort := conn.RemoteAddr().String()
-	host, _, _ := net.SplitHostPort(maybeHostPort)
+    maybeHostPort := conn.RemoteAddr().String()
+    host, _, _ := net.SplitHostPort(maybeHostPort)
     requestSize := int(math.Log10(len(data)))
     tags := []scorecard.Tag{
         scorecard.MakeStringTag("handler", SleepHandlerName),
