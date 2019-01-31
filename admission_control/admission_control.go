@@ -171,7 +171,7 @@ type admissionControllerImpl struct {
 
 type waiter struct {
 	index uint64
-	wake  chan interface{}
+	wake  chan struct{}
 }
 
 func modularInc(x uint64, w int) uint64 {
@@ -211,7 +211,7 @@ func (ac *admissionControllerImpl) admitOneSlowPath(tk *Ticket) (rv *Ticket) {
 	}()
 
 	w := &waiter{
-		wake: make(chan interface{}),
+		wake: make(chan struct{}),
 	}
 	timeout := ac.enqueueWaiter(w)
 	proceed := false
