@@ -115,6 +115,26 @@ func TestConcurrency(t *testing.T) {
 	ac.(*admissionControllerImpl).assertIdle()
 }
 
+// Tests PR #16
+func TestReleaseBeforeEnqueue(t *testing.T) {
+	ac := NewCustomAdmissionController(1, 500*time.Millisecond, 1*time.Second)
+	defer ac.Stop()
+	for i := 0; i < 4096; i++ {
+		tk := ac.AdmitOne()
+		doneCh := make(chan struct{})
+		go func() {
+			tk.Release()
+			close(doneCh)
+		}()
+		newTk := ac.AdmitOne()
+		if newTk == nil {
+			t.Fatal("we hit deadlock during AdmitOne")
+		}
+		newTk.Release()
+		<-doneCh
+	}
+}
+
 // This is the default benchmark with a minimal NOP of an implemenation.
 // Latencies to measure benchmark overhead.
 //

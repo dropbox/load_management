@@ -184,7 +184,6 @@ func modularDec(x uint64, w int) uint64 {
 }
 
 func (ac *admissionControllerImpl) AdmitOne() *Ticket {
-	tk := &Ticket{0, ac}
 	ac.mtx.Lock()
 	stopped := ac.stopped
 	admit := false
@@ -193,12 +192,16 @@ func (ac *admissionControllerImpl) AdmitOne() *Ticket {
 		admit = true
 	}
 	ac.mtx.Unlock()
+
 	if stopped {
 		return nil
 	}
+
+	tk := &Ticket{IssuedBy: ac}
 	if admit {
 		return tk
 	}
+
 	return ac.admitOneSlowPath(tk)
 }
 
@@ -213,7 +216,12 @@ func (ac *admissionControllerImpl) admitOneSlowPath(tk *Ticket) (rv *Ticket) {
 	w := &waiter{
 		wake: make(chan struct{}),
 	}
-	timeout := ac.enqueueWaiter(w)
+	timeout, enqueued := ac.enqueueWaiter(w)
+	// fast path triggered during enqueueWaiter
+	if !enqueued {
+		return tk
+	}
+
 	proceed := false
 	timer := time.NewTimer(timeout)
 	select {
@@ -231,19 +239,25 @@ func (ac *admissionControllerImpl) admitOneSlowPath(tk *Ticket) (rv *Ticket) {
 		default:
 		}
 	}
+
 	if proceed {
 		// The ac.admitted value is preserved when we were sent our wake.  To
 		// set it here would introduce a race condition.
 		return tk
 	}
 	return nil
+
 }
 
-func (ac *admissionControllerImpl) enqueueWaiter(w *waiter) time.Duration {
+func (ac *admissionControllerImpl) enqueueWaiter(w *waiter) (time.Duration, bool) {
 	now := time.Now()
 	ac.mtx.Lock()
 	defer ac.mtx.Unlock()
 	ac.checkInvariants()
+	if ac.head == ac.tail && ac.admitted < ac.allowed {
+		ac.admitted++
+		return 0, false
+	}
 	if modularInc(ac.tail, len(ac.waiters)) == ac.head {
 		ac.resizeWaiters()
 	}
@@ -253,9 +267,9 @@ func (ac *admissionControllerImpl) enqueueWaiter(w *waiter) time.Duration {
 	ac.tail = modularInc(ac.tail, len(ac.waiters))
 	ac.checkInvariants()
 	if ac.mode == lifoQueueMode {
-		return ac.M
+		return ac.M, true
 	}
-	return ac.N
+	return ac.N, true
 }
 
 func (ac *admissionControllerImpl) removeWaiter(w *waiter) {
