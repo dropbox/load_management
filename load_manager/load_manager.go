@@ -26,6 +26,8 @@ import (
 
 const suspiciousQueueName = "suspicious"
 
+const hardReject = uint(0)
+
 // A LoadManager uses AdmissionControl and Scorecard to do traffic shaping.
 //
 // Specifically, it sets the following limits:
@@ -90,6 +92,12 @@ func (l *LoadManager) GetResource(
 	if resource.QueueInfo.Ticket == nil {
 		return resource
 	}
+
+        // If a rule violated has a capacity of 0 then we simply reject the request
+        // without going through the suspicious queue.
+        if resource.Suspicious() && resource.TrackingInfo.Violated.Capacity == hardReject {
+                return resource
+        }
 
 	// Slow path. Scorecard violation. Maybe get a suspicious ticket.
 	ticket := l.suspiciousQueue.AdmitOne()
