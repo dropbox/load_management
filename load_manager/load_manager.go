@@ -93,11 +93,11 @@ func (l *LoadManager) GetResource(
 		return resource
 	}
 
-        // If a rule violated has a capacity of 0 then we simply reject the request
-        // without going through the suspicious queue.
-        if resource.Suspicious() && resource.TrackingInfo.Violated.Capacity == hardReject {
-                return resource
-        }
+	// If a rule violated has a capacity of 0 then we simply reject the request
+	// without going through the suspicious queue.
+	if resource.Suspicious() && resource.TrackingInfo.Violated.Capacity == hardReject {
+		return resource
+	}
 
 	// Slow path. Scorecard violation. Maybe get a suspicious ticket.
 	ticket := l.suspiciousQueue.AdmitOne()
