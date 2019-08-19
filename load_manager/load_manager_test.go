@@ -326,6 +326,28 @@ func TestLoadManagerRefcounting(t *testing.T) {
 	}
 }
 
+func TestHardReject(t *testing.T) {
+        ctx := context.Background()
+
+        queueNames, queues := makeQueues(1, 1)
+        tag := scorecard.Tag("prefix:val")
+
+        loadManager := NewLoadManager(
+                queues,
+                ac.NewAdmissionController(1),
+                scorecard.NewDynamicScorecard(
+                        []scorecard.Rule{{Pattern: string(tag), Capacity: hardReject}}),
+                scorecard.NewDynamicScorecard(scorecard.NoRules()),
+                scorecard.NoTags(),
+        )
+
+        resource := loadManager.GetResource(ctx, queueNames[0], []scorecard.Tag{tag})
+        // We should not acquire any admission control tickets
+        require.False(t, resource.Acquired())
+        // Request should be marked suspicious
+        require.True(t, resource.Suspicious())
+}
+
 func makeQueues(num int, capacity uint) ([]string, map[string]ac.AdmissionController) {
 	queueNames := make([]string, num)
 	for idx := range queueNames {
