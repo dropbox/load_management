@@ -103,13 +103,29 @@ type matchState struct {
 	matches [][]Tag
 }
 
+// productSize returns the size of the cartesian product of the given sets.
+func productSize(outer [][]Tag) int {
+	sum := 0
+	prod := 1
+	for _, inner := range outer {
+		sum += len(inner)
+		if len(inner) > 0 {
+			prod *= len(inner)
+		}
+	}
+	if sum == 0 {
+		return 0
+	}
+	return prod
+}
+
 func (ms *matchState) generate() []Tag {
 	// index into each slice in matches for purposes of cartesian product
 	// calculation
 	indices := make([]int, len(ms.matches))
-	tags := make([]Tag, 0)
+	tags := make([]Tag, 0, productSize(ms.matches))
+	var buf bytes.Buffer
 	for !ms.permutationDone(indices) {
-		var buf bytes.Buffer
 		for i := 0; i < len(ms.matches); i++ {
 			if i > 0 {
 				_, _ = buf.WriteString(RuleDelimiter)
@@ -117,6 +133,7 @@ func (ms *matchState) generate() []Tag {
 			_, _ = buf.WriteString(string(ms.matches[i][indices[i]]))
 		}
 		tags = append(tags, Tag(buf.String()))
+		buf.Reset()
 		ms.advancePermutation(indices)
 	}
 	return tags
