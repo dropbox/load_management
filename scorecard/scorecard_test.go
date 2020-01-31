@@ -803,7 +803,7 @@ func (s *ScorecardSuite) TestDynamicScorecardForLeaks() {
 	for i := 0; i < threads; i++ {
 		select {
 		case <-timer.C:
-			s.T().Fatal("test appears wedged")
+			s.T().FailNow()
 		case <-results:
 		}
 	}
