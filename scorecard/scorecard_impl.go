@@ -28,7 +28,7 @@ type scorecardImpl struct {
 	// contention becomes a problem, therefore RWMutex.
 	rulesMu sync.RWMutex
 	rules   []Rule
-	ctg     *CompoundTagGenerator
+	ctg     *compoundTagGenerator
 
 	// separate mutex for current to avoid contention with reading pointers above
 	// for each rule.
@@ -36,7 +36,7 @@ type scorecardImpl struct {
 	current   map[Tag]uint
 }
 
-func getRulesAndTagGenerator(rules []Rule) ([]Rule, *CompoundTagGenerator) {
+func getRulesAndTagGenerator(rules []Rule) ([]Rule, *compoundTagGenerator) {
 	// Dedup the rules
 	dedupedRules := make([]Rule, 0, len(rules))
 	ruleMap := make(map[string]struct{}, len(rules))
@@ -83,20 +83,32 @@ func ruleFor(rules []Rule, tag Tag) Rule {
 
 func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 	s.rulesMu.RLock()
-	rules := s.rules
 	ctg := s.ctg
 	s.rulesMu.RUnlock()
-	allTags := ctg.Generate(tags)
-	allTags = append(allTags, tags...)
-	for idx, tag := range allTags {
-		rule := ruleFor(rules, tag)
+	
+	// NOTE(opaugam) - perform the cartesian product of tag X non-atomic rules. The
+	// shortcuts array holds a back pointer to the corresponding rule for each output tag. 
+	var rule Rule
+	shortcuts, expanded := ctg.combine(tags)
+	expanded = append(expanded, tags...)
+	for idx, tag := range expanded {
+		// NOTE(opaugam) - the first n tags can by definition be mapped to their rule 
+		// without globbing. We still need to enforce a linear scan+glob for the rest
+		// (e.g the input tags) but do it only on whatever atomic rules we have. If we
+		// can't match we'll default to a Rule{} placeholder.
+		if idx < len(shortcuts) {
+			rule = shortcuts[idx].rule
+		} else {
+			rule = ruleFor(ctg.singleFragmentRules, tag)
+		}
+
 		if s.shouldIsolateTag(tag, rule) {
 			// shouldIsolate tracks rules in the scorecard. For now, it only tracks when the rule
 			// isn't violated (i.e. doesn't hit this branch). That means we will want to untrack the
-			// previous idx rules, so we take allTags[:idx] (end range is EXCLUSIVE). If
+			// previous idx rules, so we take expanded[:idx] (end range is EXCLUSIVE). If
 			// shouldIsolate changes to add in either case, then we should make sure to unset
-			// allTags[idx] as well.
-			s.rawUntrackRequest(allTags[:idx])
+			// expanded[idx] as well.
+			s.rawUntrackRequest(expanded[:idx])
 			return &TrackingInfo{
 				Tracked:  false,
 				Violated: rule,
@@ -107,7 +119,7 @@ func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 	}
 	return &TrackingInfo{
 		Tracked:     true,
-		trackedTags: allTags,
+		trackedTags: expanded,
 		scorecard:   s,
 		callback:    rawUntrackCallback,
 	}
