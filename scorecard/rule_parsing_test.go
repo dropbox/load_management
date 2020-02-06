@@ -169,7 +169,7 @@ func SameTags(a []Tag, b []Tag) bool {
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateSimple() {
-	ctg := NewCompoundTagGenerator([]Rule{{"op:read;gid:42", 5}})
+	ctg := newCompoundTagGenerator([]Rule{{"op:read;gid:42", 5}})
 	_, tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -181,13 +181,13 @@ func (s *RuleParsingSuite) TestCompoundGenerateSimple() {
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateNontrivial() {
-	ctg := NewCompoundTagGenerator([]Rule{{"op:read", 2}})
+	ctg := newCompoundTagGenerator([]Rule{{"op:read", 2}})
 	_, tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 }
 
 func (s *RuleParsingSuite) TestWildcard() {
-	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
 	_, tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -199,7 +199,7 @@ func (s *RuleParsingSuite) TestWildcard() {
 }
 
 func (s *RuleParsingSuite) TestRuleDupes() {
-	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}, {"gid:*;op:*", 5}})
+	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}, {"gid:*;op:*", 5}})
 	_, tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -211,7 +211,7 @@ func (s *RuleParsingSuite) TestRuleDupes() {
 }
 
 func (s *RuleParsingSuite) TestTagDupes() {
-	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
 	_, tags := ctg.combine([]Tag{"op:read", "op:write", "op:list", "gid:42", "gid:13"})
 	out := []Tag{
 		"op:read;gid:42",

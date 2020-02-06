@@ -216,7 +216,7 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) ([]*fragmentedRule, []Tag) 
 	// glob a potentially high number of tags when tracking a request.
 	rules := make([]*fragmentedRule, 0)
 	product := make([]Tag, 0)
-	
+
 	// For each tag, construct the cartesian product of all its matched tags.
 	// For example, the rule "op:*;gid:*" will generate a list of new tags along
 	// the lines of:
@@ -252,9 +252,9 @@ func newMatchState(fr *fragmentedRule) *matchState {
 	return st
 }
 
-// NewCompoundTagGenerator returns structure which can generate compount tags
-// from set of basic tags.
-func NewCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
+// This helper returns a wrapper which can generate compount tags
+// from a set of basic tags.
+func newCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
 	ctg := &compoundTagGenerator{}
 	ctg.fragments = make(map[string][]fragmentPointer)
 	ctg.orderedFragments = make([]*fragmentedRule, 0, len(rules))
@@ -275,7 +275,7 @@ func NewCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
 				} else {
 					ctg.fragments[f] = []fragmentPointer{{fr, idx}}
 				}
-			}	
+			}
 		}
 	}
 	return ctg

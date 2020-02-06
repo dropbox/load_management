@@ -48,7 +48,7 @@ func getRulesAndTagGenerator(rules []Rule) ([]Rule, *compoundTagGenerator) {
 		}
 	}
 
-	return dedupedRules, NewCompoundTagGenerator(dedupedRules)
+	return dedupedRules, newCompoundTagGenerator(dedupedRules)
 }
 
 func newScorecard(rules []Rule) Scorecard {
@@ -85,14 +85,14 @@ func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 	s.rulesMu.RLock()
 	ctg := s.ctg
 	s.rulesMu.RUnlock()
-	
+
 	// NOTE(opaugam) - perform the cartesian product of tag X non-atomic rules. The
-	// shortcuts array holds a back pointer to the corresponding rule for each output tag. 
+	// shortcuts array holds a back pointer to the corresponding rule for each output tag.
 	var rule Rule
 	shortcuts, expanded := ctg.combine(tags)
 	expanded = append(expanded, tags...)
 	for idx, tag := range expanded {
-		// NOTE(opaugam) - the first n tags can by definition be mapped to their rule 
+		// NOTE(opaugam) - the first n tags can by definition be mapped to their rule
 		// without globbing. We still need to enforce a linear scan+glob for the rest
 		// (e.g the input tags) but do it only on whatever atomic rules we have. If we
 		// can't match we'll default to a Rule{} placeholder.
