@@ -31,14 +31,14 @@ type scorecardImpl struct {
 	// contention becomes a problem, therefore RWMutex.
 	rulesMu sync.RWMutex
 	rules   []Rule
-	ctg     *CompoundTagGenerator
+	ctg     *compoundTagGenerator
 
 	// To reduce lock contention, every `Tag` is mapped to one of `numBuckets` buckets which has
 	// its own lock.
 	tagScoresBuckets [numBuckets]*tagScores
 }
 
-func getRulesAndTagGenerator(rules []Rule) ([]Rule, *CompoundTagGenerator) {
+func getRulesAndTagGenerator(rules []Rule) ([]Rule, *compoundTagGenerator) {
 	// Dedup the rules
 	dedupedRules := make([]Rule, 0, len(rules))
 	ruleMap := make(map[string]struct{}, len(rules))
@@ -50,7 +50,7 @@ func getRulesAndTagGenerator(rules []Rule) ([]Rule, *CompoundTagGenerator) {
 		}
 	}
 
-	return dedupedRules, NewCompoundTagGenerator(dedupedRules)
+	return dedupedRules, newCompoundTagGenerator(dedupedRules)
 }
 
 func newScorecard(rules []Rule) Scorecard {
