@@ -161,7 +161,7 @@ func (s *scorecardImpl) bucket(tag Tag) *tagScores {
 	// This hash was picked arbitrarily. The fastest, crudest, hash is probably ideal.
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(tag))
-	return s.tagScoresBuckets[h.Sum32() % numBuckets]
+	return s.tagScoresBuckets[h.Sum32()%numBuckets]
 }
 
 func (s *scorecardImpl) Inspect() map[Tag]uint {
@@ -177,8 +177,8 @@ func (s *scorecardImpl) Inspect() map[Tag]uint {
 }
 
 type tagScores struct {
-	lock sync.Mutex
-	tagToScore   map[Tag]uint
+	lock       sync.Mutex
+	tagToScore map[Tag]uint
 }
 
 func (t *tagScores) shouldIsolateTag(tag Tag, rule Rule) bool {
