@@ -60,8 +60,8 @@ func newScorecard(rules []Rule) Scorecard {
 		tagScoresBuckets[i] = &tagScores{tagToScore: make(map[Tag]uint)}
 	}
 	return &scorecardImpl{
-		rules:   rules,
-		ctg:     ctg,
+		rules:            rules,
+		ctg:              ctg,
 		tagScoresBuckets: tagScoresBuckets,
 	}
 }
@@ -160,7 +160,7 @@ func (s *scorecardImpl) removeReference(tag Tag) {
 func (s *scorecardImpl) bucket(tag Tag) *tagScores {
 	// This hash was picked arbitrarily. The fastest, crudest, hash is probably ideal.
 	h := fnv.New32a()
-	h.Write([]byte(tag))
+	_, _ = h.Write([]byte(tag))
 	return s.tagScoresBuckets[h.Sum32() % numBuckets]
 }
 
