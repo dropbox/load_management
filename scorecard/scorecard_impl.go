@@ -80,7 +80,7 @@ func (r *Rule) isDefaultValue() bool {
 
 func ruleFor(rules []Rule, tag Tag) Rule {
 	for _, rule := range rules {
-		if TagMatchesRule(tag, rule) {
+		if FastMatch(tag, rule.Pattern) {
 			return rule
 		}
 	}

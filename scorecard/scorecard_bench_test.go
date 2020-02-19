@@ -301,5 +301,145 @@ func BenchmarkScorecardGenerate(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sc.TrackRequest(tags)
 	}
+}
 
+var benchmarkRules = []Rule{
+	{"traffic:batch_traffic;source:blackbird_worker_prod_high_memory_sjc-blackbird_worker_bin", 5},
+	{"source:segmentation*", 30},
+	{"traffic:batch_traffic;source:filesystem.fs_job_worker_fs_job_worker-backfill_bin", 10},
+	{"traffic:batch_traffic;tclass:master;client_id:*", 60},
+	{"traffic:batch_traffic;tclass:slave;source:owner_team_data_infra-mapper.py", 5},
+	{"traffic:batch_traffic;tclass:slave;client_id:*", 5},
+	{"traffic:live_traffic;source:metaserver*", 400},
+	{"traffic:live_traffic;source:*", 50},
+	{"op:gid_create_txn", 100},
+	{"op:gid_create_txn;colo:*", 1},
+	{"traffic:batch_traffic;tclass:master;source:*", 30},
+	{"traffic:batch_traffic;tclass:slave;source:*", 60},
+	{"op:read_list;source:cape*", 20},
+	{"op:scan", 10},
+	{"source:*;op:scan", 2}}
+var requests = [][]Tag{
+	{"source:cape_yss_workers_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda_iad-async_task_worker_wrapper.py", "client_id:meta", "op:insert_revision", "op:read_gid2", "traffic:live_traffic"},
+	{"source:fsverifier_fsverifier_worker_prod-fsverifier_worker_bin", "client_id:audit_log", "op:read_revision", "op:txn", "traffic:live_traffic"},
+	{"source:cape_dispatcher_yss_edgestore_canary-cape_dispatcher_bin", "client_id:cape_dispatcher", "op:gid_create_read_id", "op:read_ep", "traffic:batch_traffic"},
+	{"source:owner_shared_spaces-count_shmodels_banned_under_rl_migration.py", "client_id:argus", "op:read_xtxn_conflict", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:filejournal_sjc.prod-fj_server_1.12_bin", "client_id:taskrunner_sharing_platform", "op:txn", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:blackbird_prod_common", "op:txn", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:owner_messaging_team-delphi_store_consumer_bin", "client_id:megaphone_bluemail_kafka_consumer", "op:read_gid2", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site_control-main.py", "client_id:megaphone_bluemail_kafka_consumer", "op:insert_revision", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:sync_frontend_sjc.canary-sync_frontend_server_bin", "client_id:atf_hsc", "op:gid_create_read_id", "op:read_gid2", "traffic:live_traffic"},
+	{"source:audit_log.atf_async_file_events_logging_workers_download_file_event_lambda-atf_controller_bin", "client_id:blackbird_prod_common", "op:read_revision", "op:insert_revision", "traffic:live_traffic"},
+	{"source:metaserver_client-paster", "client_id:cape_dispatcher", "op:read_xtxn_conflict", "op:insert_revision", "traffic:live_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:filesystem", "op:gid_create_read_id", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:owner_shared_spaces-count_shmodels_banned_under_rl_migration.py", "client_id:taskrunner_team_lifecycle", "op:read_xtxn_conflict", "op:read_revision", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site_control-main.py", "client_id:atf_controller", "op:gid_create_read_id", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:atf.frontend_yss_frontend_prod-atf_frontend_bin", "client_id:taskrunner_sharing_platform", "op:gid_create_read_id", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:audit_log.atf_async_file_events_logging_workers_download_file_event_lambda-atf_controller_bin", "client_id:blackbird_prod_alki-qa-streamer", "op:insert_revision", "op:read_revision", "traffic:live_traffic"},
+	{"source:fs_move_worker_sjc.prod-fs_move_worker_bin", "client_id:argus", "op:read_ep", "op:read_xtxn_conflict", "traffic:live_traffic"},
+	{"source:cape_yss_workers_RemoveMemberOnFileObjMoveTopology_RemoveMemberOnFileObjMoveLambda-remove_member_on_file_obj_move.py", "client_id:taskrunner_prod", "op:read_gid2", "op:read_gid2", "traffic:live_traffic"},
+	{"source:filejournal_sjc.prod-fj_server_1.12_bin", "client_id:atf_hsc", "op:gid_create_read_id", "op:read_gid2", "traffic:live_traffic"},
+	{"source:metaserver_courier_live_site-main.py", "client_id:segmentation", "op:read_gid2", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:owner_filesystem_team-namespace_member_backedge_consistency_checker.py", "client_id:sync_frontend", "op:read_gid2", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:filejournal_sjc.prod-fj_server_1.12_bin", "client_id:megaphone_journey_builder", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:live_traffic"},
+	{"source:megaphone_megaphone_rpc_service_prod-megaphone_rpc_service.py", "client_id:megaphone_journey_builder", "op:insert_revision", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site-main.py", "client_id:team_lifecycle", "op:read_ep", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:metaserver_client_control-paster", "client_id:cloud_docs", "op:read_xtxn_conflict", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:fsverifier_fsverifier_worker_prod-fsverifier_worker_bin", "client_id:iam", "op:prepare_xtxn", "op:read_gid2", "traffic:live_traffic"},
+	{"source:audit_log.atf_async_file_events_logging_workers_download_file_event_lambda-atf_controller_bin", "client_id:megaphone_bluemail_kafka_consumer", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:atf_controller", "op:gid_create_read_id", "op:txn", "traffic:live_traffic"},
+	{"source:fsverifier_fsverifier_worker_prod-fsverifier_worker_bin", "client_id:filesystem", "op:read_revision", "op:read_revision", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda_iad-async_task_worker_wrapper.py", "client_id:cape_workers", "op:gid_create_read_id", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:owner_messaging_team-delphi_store_consumer_bin", "client_id:audit_log", "op:read_revision", "op:read_revision", "traffic:batch_traffic"},
+	{"source:atf.store_consumer_yss_store_consumer_prod-atf_store_consumer_bin", "client_id:sprinkle", "op:gid_create_read_id", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:atf.store_consumer_yss_store_consumer_prod-atf_store_consumer_bin", "client_id:taskrunner_sharing_platform", "op:gid_create_read_id", "op:gid_create_read_id", "traffic:live_traffic"},
+	{"source:audit_log.atf_async_file_events_logging_workers_download_file_event_lambda-atf_controller_bin", "client_id:meta", "op:txn", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:argus", "op:insert_revision", "op:txn", "traffic:batch_traffic"},
+	{"source:atf.store_consumer_yss_store_consumer_prod-atf_store_consumer_bin", "client_id:atf_store_consumer", "op:insert_revision", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_PhotoAndVideoCollectionsRefreshTopology_PhotoVideoCollectionsRefreshLambda-pv_collections_refresh.py", "client_id:argus", "op:read_revision", "op:insert_revision", "traffic:live_traffic"},
+	{"source:audit_log.atf_async_file_events_logging_workers_download_file_event_lambda-atf_controller_bin", "client_id:dropbox", "op:txn", "op:insert_revision", "traffic:live_traffic"},
+	{"source:blackbird_worker_prod_restorations_sjc-blackbird_worker_bin", "client_id:filesystem", "op:read_xtxn_conflict", "op:txn", "traffic:batch_traffic"},
+	{"source:sync_frontend_sjc.prod-sync_frontend_server_bin", "client_id:filesystem", "op:gid_create_read_id", "op:txn", "traffic:batch_traffic"},
+	{"source:metaserver_client-paster", "client_id:segmentation", "op:insert_revision", "op:read_ep", "traffic:batch_traffic"},
+	{"source:filejournal_sjc.prod-fj_server_1.12_bin", "client_id:iam", "op:gid_create_read_id", "op:insert_revision", "traffic:live_traffic"},
+	{"source:sync_frontend_sjc.prod-sync_frontend_server_bin", "client_id:taskrunner_team_lifecycle", "op:insert_revision", "op:txn", "traffic:batch_traffic"},
+	{"source:owner_filesystem_team-namespace_member_backedge_consistency_checker.py", "client_id:blackbird_prod_common", "op:insert_revision", "op:read_xtxn_conflict", "traffic:live_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:megaphone_journey_builder", "op:read_xtxn_conflict", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:megaphone_megaphone_rpc_service_prod-megaphone_rpc_service.py", "client_id:cloud_docs", "op:read_revision", "op:gid_create_read_id", "traffic:live_traffic"},
+	{"source:cape_yss_workers_PhotoAndVideoCollectionsRefreshTopology_PhotoVideoCollectionsRefreshLambda-pv_collections_refresh.py", "client_id:blackbird_prod_restorations", "op:gid_create_read_id", "op:read_xtxn_conflict", "traffic:live_traffic"},
+	{"source:owner_messaging_team-delphi_store_consumer_bin", "client_id:audit_log", "op:insert_revision", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:megaphone_megaphone_rpc_service_prod-megaphone_rpc_service.py", "client_id:taskrunner_team_lifecycle", "op:read_xtxn_conflict", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:owner_shared_spaces-count_shmodels_banned_under_rl_migration.py", "client_id:taskrunner_prod", "op:read_xtxn_conflict", "op:read_xtxn_conflict", "traffic:live_traffic"},
+	{"source:sync_frontend_sjc.prod-sync_frontend_server_bin", "client_id:atf_hsc", "op:read_xtxn_conflict", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:filejournal_sjc.prod-fj_server_1.12_bin", "client_id:argus", "op:prepare_xtxn", "op:read_revision", "traffic:live_traffic"},
+	{"source:metaserver_client_control-paster", "client_id:atf_hsc", "op:read_gid2", "op:read_gid2", "traffic:live_traffic"},
+	{"source:gatekeeper_sjc.prod-gatekeeper_svc_bin", "client_id:blackbird_prod_high-memory", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:cape_dispatcher_yss_edgestore_prod-cape_dispatcher_bin", "client_id:blackbird_prod_alki-qa-streamer", "op:txn", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:megaphone_bluemail_kafka_consumer", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:blackbird_prod_common", "op:prepare_xtxn", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_PhotoAndVideoCollectionsRefreshTopology_PhotoVideoCollectionsRefreshLambda-pv_collections_refresh.py", "client_id:taskrunner_prod", "op:gid_create_read_id", "op:insert_revision", "traffic:live_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:dropbox", "op:read_ep", "op:insert_revision", "traffic:live_traffic"},
+	{"source:atf.store_consumer_yss_store_consumer_prod-atf_store_consumer_bin", "client_id:atf_controller", "op:prepare_xtxn", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:cape_dispatcher_yss_edgestore_canary-cape_dispatcher_bin", "client_id:dropbox", "op:txn", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site-main.py", "client_id:atf_hsc", "op:gid_create_read_id", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:atf_test_cluster_workers_atf_test_lambda-atf_controller_bin", "client_id:argus", "op:gid_create_read_id", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:gatekeeper_sjc.prod-gatekeeper_svc_bin", "client_id:megaphone_bluemail_kafka_consumer", "op:read_revision", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:search_indexer", "op:read_gid2", "op:gid_create_read_id", "traffic:live_traffic"},
+	{"source:sync_frontend_sjc.prod-sync_frontend_server_bin", "client_id:taskrunner_team_lifecycle", "op:prepare_xtxn", "op:read_xtxn_conflict", "traffic:live_traffic"},
+	{"source:gatekeeper_sjc.prod-gatekeeper_svc_bin", "client_id:atf_store_consumer", "op:read_ep", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_RemoveMemberOnFileObjMoveTopology_RemoveMemberOnFileObjMoveLambda-remove_member_on_file_obj_move.py", "client_id:megaphone_journey_builder", "op:prepare_xtxn", "op:read_ep", "traffic:batch_traffic"},
+	{"source:owner_messaging_team-delphi_store_consumer_bin", "client_id:taskrunner_team_lifecycle", "op:gid_create_read_id", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:atf_test_cluster_workers_atf_test_lambda-atf_controller_bin", "client_id:megaphone_journey_builder", "op:txn", "op:txn", "traffic:live_traffic"},
+	{"source:fs_move_worker_sjc.prod-fs_move_worker_bin", "client_id:blackbird_prod_high-memory", "op:read_xtxn_conflict", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:fs_move_worker_sjc.prod-fs_move_worker_bin", "client_id:cloud_docs", "op:gid_create_read_id", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:filesystem.fs_job_worker_fs_job_worker-backfill_bin", "client_id:taskrunner_prod", "op:read_ep", "op:read_revision", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:blackbird_prod_high-memory", "op:prepare_xtxn", "op:read_revision", "traffic:live_traffic"},
+	{"source:fsverifier_fsverifier_worker_prod-fsverifier_worker_bin", "client_id:sprinkle", "op:read_ep", "op:read_revision", "traffic:live_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:filesystem", "op:txn", "op:txn", "traffic:live_traffic"},
+	{"source:metaserver_client_control-paster", "client_id:argus", "op:gid_create_read_id", "op:read_revision", "traffic:live_traffic"},
+	{"source:fs_move_worker_sjc.prod-fs_move_worker_bin", "client_id:sprinkle", "op:gid_create_read_id", "op:prepare_xtxn", "traffic:live_traffic"},
+	{"source:cape_yss_workers_RemoveMemberOnFileObjMoveTopology_RemoveMemberOnFileObjMoveLambda-remove_member_on_file_obj_move.py", "client_id:cape_dispatcher", "op:read_gid2", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:atf.store_consumer_yss_store_consumer_prod-atf_store_consumer_bin", "client_id:dropbox", "op:prepare_xtxn", "op:read_revision", "traffic:batch_traffic"},
+	{"source:metaserver_client-paster", "client_id:argus", "op:prepare_xtxn", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site_control-main.py", "client_id:search_indexer", "op:read_revision", "op:insert_revision", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_PhotoAndVideoCollectionsRefreshTopology_PhotoVideoCollectionsRefreshLambda-pv_collections_refresh.py", "client_id:argus", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:owner_filesystem_team-namespace_member_backedge_consistency_checker.py", "client_id:iam", "op:prepare_xtxn", "op:read_ep", "traffic:batch_traffic"},
+	{"source:blackbird_worker_prod_restorations_sjc-blackbird_worker_bin", "client_id:cloud_docs", "op:read_gid2", "op:read_ep", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:blackbird_prod_high-memory", "op:read_revision", "op:read_revision", "traffic:batch_traffic"},
+	{"source:filesystem.fs_job_worker_fs_job_worker-backfill_bin", "client_id:taskrunner_team_lifecycle", "op:read_xtxn_conflict", "op:read_ep", "traffic:batch_traffic"},
+	{"source:metaserver_courier_live_site_control-main.py", "client_id:taskrunner_prod", "op:read_xtxn_conflict", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:megaphone_megaphone_rpc_service_prod-megaphone_rpc_service.py", "client_id:dropbox", "op:prepare_xtxn", "op:gid_create_read_id", "traffic:live_traffic"},
+	{"source:metaserver_courier_live_site_control-main.py", "client_id:atf_store_consumer", "op:prepare_xtxn", "op:read_gid2", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:cape_dispatcher", "op:read_xtxn_conflict", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:cape_yss_workers_canary_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda-async_task_worker_wrapper.py", "client_id:atf_controller", "op:prepare_xtxn", "op:prepare_xtxn", "traffic:batch_traffic"},
+	{"source:megaphone_megaphone_rpc_service_prod-megaphone_rpc_service.py", "client_id:team_lifecycle", "op:read_gid2", "op:prepare_xtxn", "traffic:live_traffic"},
+	{"source:metaserver_client-paster", "client_id:atf_store_consumer", "op:read_xtxn_conflict", "op:read_ep", "traffic:batch_traffic"},
+	{"source:owner_shared_spaces-count_shmodels_banned_under_rl_migration.py", "client_id:taskrunner_sharing_platform", "op:read_ep", "op:read_revision", "traffic:live_traffic"},
+	{"source:sync_frontend_sjc.canary-sync_frontend_server_bin", "client_id:atf_store_consumer", "op:read_gid2", "op:prepare_xtxn", "traffic:live_traffic"},
+	{"source:owner_messaging_team-delphi_store_consumer_bin", "client_id:blackbird_prod_alki-qa-streamer", "op:insert_revision", "op:read_xtxn_conflict", "traffic:batch_traffic"},
+	{"source:metaserver_client-paster", "client_id:audit_log", "op:insert_revision", "op:read_revision", "traffic:batch_traffic"},
+	{"source:owner_filesystem_team-namespace_member_backedge_consistency_checker.py", "client_id:taskrunner_prod", "op:read_xtxn_conflict", "op:gid_create_read_id", "traffic:batch_traffic"},
+	{"source:metaserver_client_canary-paster", "client_id:cloud_docs", "op:gid_create_read_id", "op:txn", "traffic:live_traffic"},
+}
+
+func BenchmarkProdDataSetWithRelease(b *testing.B) {
+	benchmarkSC := NewScorecard(benchmarkRules)
+	for i := 0; i < b.N; i++ {
+		for _, r := range requests {
+			trackingInfo := benchmarkSC.TrackRequest(r)
+			go func(ti *TrackingInfo) {
+				time.Sleep(1 * time.Millisecond)
+				ti.Untrack()
+			}(trackingInfo)
+		}
+	}
+}
+
+func BenchmarkProdDataSetWithoutRelease(b *testing.B) {
+	benchmarkSC := NewScorecard(benchmarkRules)
+	for i := 0; i < b.N; i++ {
+		for _, r := range requests {
+			benchmarkSC.TrackRequest(r)
+		}
+	}
 }
