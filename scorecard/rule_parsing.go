@@ -54,6 +54,21 @@ func TagMatchesPattern(t Tag, p string) bool {
 	return err == nil && match
 }
 
+func FastMatch(t Tag, p string) bool {
+	ts := string(t)
+	pLen := len(p)
+	if pLen > 0 && p[pLen-1] == '*' {
+		// There is a wild card at the end of the pattern string.
+		// If the pattern is a prefix of the tag passed in
+		// then return true because the wildcard matches everything.
+		if strings.HasPrefix(ts, p[:pLen-1]) {
+			return true
+		}
+		return false
+	}
+	return ts == p
+}
+
 // Matches is a helper to put TagMatchesRule as a member of Tag
 func (t Tag) Matches(r Rule) bool {
 	return TagMatchesRule(t, r)
@@ -193,7 +208,7 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) ([]*fragmentedRule, []Tag) 
 	// fragments first so a ruleset without compound rules pays near-zero cost
 	for pattern, fragmentPointers := range ctg.fragments {
 		for _, tag := range tags {
-			if TagMatchesPattern(tag, pattern) {
+			if FastMatch(tag, pattern) {
 				// Each fragment pointer associated with the matched pattern
 				// points to a rule and indexes the fragment in that rule.
 				for _, fragmentPointer := range fragmentPointers {
@@ -269,6 +284,7 @@ func newCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
 			// NOTE(opaugam) - compound rules are tokenized into 2+ fragments.
 			fr := &fragmentedRule{frags, rule}
 			ctg.orderedFragments = append(ctg.orderedFragments, fr)
+
 			for idx, f := range fr.fragments {
 				if arr, ok := ctg.fragments[f]; ok {
 					ctg.fragments[f] = append(arr, fragmentPointer{fr, idx})
