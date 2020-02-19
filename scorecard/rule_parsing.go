@@ -61,10 +61,7 @@ func FastMatch(t Tag, p string) bool {
 		// There is a wild card at the end of the pattern string.
 		// If the pattern is a prefix of the tag passed in
 		// then return true because the wildcard matches everything.
-		if strings.HasPrefix(ts, p[:pLen-1]) {
-			return true
-		}
-		return false
+		return strings.HasPrefix(ts, p[:pLen-1])
 	}
 	return ts == p
 }
