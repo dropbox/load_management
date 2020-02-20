@@ -169,50 +169,50 @@ func SameTags(a []Tag, b []Tag) bool {
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateSimple() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:read;gid:42", 5}})
-	_, tags := ctg.combine([]Tag{"op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:13"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:42"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:42"}))
+	ctg := NewCompoundTagGenerator([]Rule{{"op:read;gid:42", 5}})
+	tags := []Tag{"op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
+	tags = []Tag{"op:read", "gid:*"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
+	tags = []Tag{"op:read", "gid:13"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
+	tags = []Tag{"op:read", "gid:42"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:42"}))
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateNontrivial() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:read", 2}})
-	_, tags := ctg.combine([]Tag{"op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
+	ctg := NewCompoundTagGenerator([]Rule{{"op:read", 2}})
+	tags := []Tag{"op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
 }
 
 func (s *RuleParsingSuite) TestWildcard() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
-	_, tags := ctg.combine([]Tag{"op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:*"}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:42"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:42"}))
-	_, tags = ctg.combine([]Tag{"gid:42", "op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:42"}))
+	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	tags := []Tag{"op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
+	tags = []Tag{"op:read", "gid:*"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:*"}))
+	tags = []Tag{"op:read", "gid:42"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:42"}))
+	tags = []Tag{"gid:42", "op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:42"}))
 }
 
 func (s *RuleParsingSuite) TestRuleDupes() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}, {"gid:*;op:*", 5}})
-	_, tags := ctg.combine([]Tag{"op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:*"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:*", "gid:*;op:read"}))
-	_, tags = ctg.combine([]Tag{"op:read", "gid:42"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:42", "gid:42;op:read"}))
-	_, tags = ctg.combine([]Tag{"gid:42", "op:read"})
-	assert.True(s.T(), SameTags(tags, []Tag{"op:read;gid:42", "gid:42;op:read"}))
+	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}, {"gid:*;op:*", 5}})
+	tags := []Tag{"op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{}))
+	tags = []Tag{"op:read", "gid:*"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:*", "gid:*;op:read"}))
+	tags = []Tag{"op:read", "gid:42"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:42", "gid:42;op:read"}))
+	tags = []Tag{"gid:42", "op:read"}
+	assert.True(s.T(), SameTags(ctg.Generate(tags), []Tag{"op:read;gid:42", "gid:42;op:read"}))
 }
 
 func (s *RuleParsingSuite) TestTagDupes() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
-	_, tags := ctg.combine([]Tag{"op:read", "op:write", "op:list", "gid:42", "gid:13"})
+	ctg := NewCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	tags := []Tag{"op:read", "op:write", "op:list", "gid:42", "gid:13"}
 	out := []Tag{
 		"op:read;gid:42",
 		"op:read;gid:13",
@@ -221,5 +221,5 @@ func (s *RuleParsingSuite) TestTagDupes() {
 		"op:list;gid:42",
 		"op:list;gid:13",
 	}
-	assert.True(s.T(), SameTags(tags, out))
+	assert.True(s.T(), SameTags(ctg.Generate(tags), out))
 }

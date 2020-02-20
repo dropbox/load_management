@@ -864,3 +864,19 @@ func (s *ScorecardSuite) TestReconfigureParallel() {
 	close(reconfigureStopCh)
 	reconfigureWg.Wait()
 }
+
+func (s *ScorecardSuite) TestRuleOrder() {
+	var benchmarkRules = []Rule{
+		{"traffic:live_traffic;source:metaserver*", 400},
+		{"traffic:live_traffic;source:*", 1},
+	}
+	bc := NewScorecard(benchmarkRules)
+	request := []Tag{
+		"source:metaserver_courier_live_site-main.py",
+		"traffic:live_traffic",
+	}
+	for i := 0; i < 2; i++ {
+		info := bc.TrackRequest(request)
+		require.Truef(s.T(), info.Tracked, "Violated: %s", info.Violated)
+	}
+}
