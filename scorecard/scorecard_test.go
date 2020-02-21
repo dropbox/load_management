@@ -190,6 +190,26 @@ func (s *ScorecardSuite) TestRepeatedUntrack() {
 	require.Equal(s.T(), vals[Tag("GID_20")], uint(1))
 }
 
+func (s *ScorecardSuite) TestRegex() {
+	var benchmarkRules = []Rule{
+		{"traffic:live_traffic;source:metaserver*", 400},
+		{"traffic:live_traffic;source:*", 50},
+	}
+	bc := NewScorecard(benchmarkRules)
+	request := []Tag{
+		"client_id:meta",
+		"source:metaserver_courier_live_site-main.py",
+		"traffic:live_traffic",
+		"rpc_op:ep_add_or_get_for_ke",
+		"datatype:PublicDomainSuffixEntity",
+		"op:read_xtxn_conflict",
+	}
+	for i := 0; i < 51; i++ {
+		info := bc.TrackRequest(request)
+		require.Truef(s.T(), info.Tracked, "Violated: %s", info.Violated)
+	}
+}
+
 // Test that an isolated request does not alter the scorecard state
 func (s *ScorecardSuite) TestIsolatedRequest() {
 	// Setup
