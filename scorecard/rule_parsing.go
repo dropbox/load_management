@@ -82,7 +82,6 @@ func (r Rule) Matches(t Tag) bool {
 // a compound rule with glob patterns into multiple permutated variants.
 type compoundTagGenerator struct {
 	fragments           map[string][]fragmentPointer
-	singleFragmentRules []Rule
 	orderedFragments    []*fragmentedRule
 }
 
@@ -200,7 +199,7 @@ func (ms *matchState) advancePermutation(indices []int) {
 // a given fragment).
 //
 // The implementation is more efficient than the above description.
-func (ctg *compoundTagGenerator) combine(tags []Tag) ([]*fragmentedRule, []Tag) {
+func (ctg *compoundTagGenerator) combine(tags []Tag) []Tag {
 	matches := make(map[*fragmentedRule]*matchState)
 	// fragments first so a ruleset without compound rules pays near-zero cost
 	for pattern, fragmentPointers := range ctg.fragments {
@@ -223,12 +222,6 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) ([]*fragmentedRule, []Tag) 
 		}
 	}
 
-	// NOTE(opaugam) - prep 2 arrays: one for the cartesian product output and
-	// one for the corresponding rules. This will allow us to avoid having to
-	// glob a potentially high number of tags when tracking a request.
-	rules := make([]*fragmentedRule, 0)
-	product := make([]Tag, 0)
-
 	// For each tag, construct the cartesian product of all its matched tags.
 	// For example, the rule "op:*;gid:*" will generate a list of new tags along
 	// the lines of:
@@ -237,21 +230,19 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) ([]*fragmentedRule, []Tag) 
 	//              yield t1 + ";" + t2
 	// The generate function will conceptually have as many of these nested
 	// loops as there are fragments in fr.
+	product := make([]Tag, 0)
 	for _, fr := range ctg.orderedFragments {
 		if match, ok := matches[fr]; ok {
 			for _, permutation := range match.generate() {
 				// NOTE(opaugam) - for each permutation output a) the rule it
 				// belongs to (e.g the current ordered fragment pointer) and b)
 				// the permutation itself.
-				rules = append(rules, fr)
 				product = append(product, permutation)
 			}
 		}
 	}
 
-	// NOTE(opaugam) - return 2 arrays: the rules that were matched and the
-	// corresponding tag permutations.
-	return rules, product
+	return product
 }
 
 func newMatchState(fr *fragmentedRule) *matchState {
@@ -270,24 +261,18 @@ func newCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
 	ctg := &compoundTagGenerator{}
 	ctg.fragments = make(map[string][]fragmentPointer)
 	ctg.orderedFragments = make([]*fragmentedRule, 0, len(rules))
-	ctg.singleFragmentRules = make([]Rule, 0, len(rules))
 	for _, rule := range rules {
 		frags := strings.Split(rule.Pattern, RuleDelimiter)
 		if len(frags) < 2 {
-			// NOTE(opaugam) - keep track of any rule with a single fragment. This
-			// will allow to miminize the amount of glob matching during evaluation.
-			ctg.singleFragmentRules = append(ctg.singleFragmentRules, rule)
-		} else {
-			// NOTE(opaugam) - compound rules are tokenized into 2+ fragments.
-			fr := &fragmentedRule{frags, rule}
-			ctg.orderedFragments = append(ctg.orderedFragments, fr)
-
-			for idx, f := range fr.fragments {
-				if arr, ok := ctg.fragments[f]; ok {
-					ctg.fragments[f] = append(arr, fragmentPointer{fr, idx})
-				} else {
-					ctg.fragments[f] = []fragmentPointer{{fr, idx}}
-				}
+			continue
+		}
+		fr := &fragmentedRule{frags, rule}
+		ctg.orderedFragments = append(ctg.orderedFragments, fr)
+		for idx, f := range fr.fragments {
+			if arr, ok := ctg.fragments[f]; ok {
+				ctg.fragments[f] = append(arr, fragmentPointer{fr, idx})
+			} else {
+				ctg.fragments[f] = []fragmentPointer{{fr, idx}}
 			}
 		}
 	}
