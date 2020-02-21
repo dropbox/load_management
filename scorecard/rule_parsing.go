@@ -81,8 +81,8 @@ func (r Rule) Matches(t Tag) bool {
 // that fully matches a given set of tags. This is used to expand
 // a compound rule with glob patterns into multiple permutated variants.
 type compoundTagGenerator struct {
-	fragments           map[string][]fragmentPointer
-	orderedFragments    []*fragmentedRule
+	fragments        map[string][]fragmentPointer
+	orderedFragments []*fragmentedRule
 }
 
 // This holds the fragments derived from the given rule
@@ -233,12 +233,10 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) []Tag {
 	product := make([]Tag, 0)
 	for _, fr := range ctg.orderedFragments {
 		if match, ok := matches[fr]; ok {
-			for _, permutation := range match.generate() {
-				// NOTE(opaugam) - for each permutation output a) the rule it
-				// belongs to (e.g the current ordered fragment pointer) and b)
-				// the permutation itself.
-				product = append(product, permutation)
-			}
+			// NOTE(opaugam) - for each permutation output a) the rule it
+			// belongs to (e.g the current ordered fragment pointer) and b)
+			// the permutation itself.
+			product = append(product, match.generate()...)
 		}
 	}
 

@@ -98,7 +98,6 @@ func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 	expanded = append(expanded, tags...)
 	for idx, tag := range expanded {
 		rule = ruleFor(rules, tag)
-	
 		if s.shouldIsolateTag(tag, rule) {
 			// shouldIsolate tracks rules in the scorecard. For now, it only tracks when the rule
 			// isn't violated (i.e. doesn't hit this branch). That means we will want to untrack the
