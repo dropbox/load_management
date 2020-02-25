@@ -40,7 +40,7 @@ const (
 	// Note: We can't blindly replace * in the rule with .* because it'll end up matching more than we desire.
 	// For eg if we replace * with .* in the regex then the rule: op:*;source:* will have the regex: op:.*;source:.*
 	// This will end up matching tags that look like: op:read_gid2;rpc:read;source:file_system. We don't want
-	// the regex to match this because it has an additional tag, value pair namely rpc:read in the middle. 
+	// the regex to match this because it has an additional tag, value pair namely rpc:read in the middle.
 	// Instead we simply match everything that's not a rule delimeter a.k.a ";"
 	starExpand = "[^;]*"
 )
