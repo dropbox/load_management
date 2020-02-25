@@ -17,6 +17,7 @@ limitations under the License.
 package scorecard
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -169,7 +170,7 @@ func SameTags(a []Tag, b []Tag) bool {
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateSimple() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:read;gid:42", 5}})
+	ctg := newCompoundTagGenerator([]*fastMatchRule{{Rule: Rule{"op:read;gid:42", 5}}})
 	tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -181,13 +182,13 @@ func (s *RuleParsingSuite) TestCompoundGenerateSimple() {
 }
 
 func (s *RuleParsingSuite) TestCompoundGenerateNontrivial() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:read", 2}})
+	ctg := newCompoundTagGenerator([]*fastMatchRule{{Rule: Rule{"op:read", 2}}})
 	tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 }
 
 func (s *RuleParsingSuite) TestWildcard() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	ctg := newCompoundTagGenerator([]*fastMatchRule{{Rule: Rule{"op:*;gid:*", 5}}})
 	tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -199,7 +200,8 @@ func (s *RuleParsingSuite) TestWildcard() {
 }
 
 func (s *RuleParsingSuite) TestRuleDupes() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}, {"gid:*;op:*", 5}})
+	ctg := newCompoundTagGenerator([]*fastMatchRule{{Rule: Rule{"op:*;gid:*", 5}},
+		{Rule: Rule{"gid:*;op:*", 5}}})
 	tags := ctg.combine([]Tag{"op:read"})
 	assert.True(s.T(), SameTags(tags, []Tag{}))
 	tags = ctg.combine([]Tag{"op:read", "gid:*"})
@@ -211,7 +213,7 @@ func (s *RuleParsingSuite) TestRuleDupes() {
 }
 
 func (s *RuleParsingSuite) TestTagDupes() {
-	ctg := newCompoundTagGenerator([]Rule{{"op:*;gid:*", 5}})
+	ctg := newCompoundTagGenerator([]*fastMatchRule{{Rule: Rule{"op:*;gid:*", 10}}})
 	tags := ctg.combine([]Tag{"op:read", "op:write", "op:list", "gid:42", "gid:13"})
 	out := []Tag{
 		"op:read;gid:42",
@@ -222,4 +224,69 @@ func (s *RuleParsingSuite) TestTagDupes() {
 		"op:list;gid:13",
 	}
 	assert.True(s.T(), SameTags(tags, out))
+}
+
+// Test for negative matches. This is to prevent bad regex patterns.
+func (s *RuleParsingSuite) TestNegativeCompoundMatches() {
+	rule := Rule{Pattern: "op:*;gid:*", Capacity: 10}
+	fastRule := getFastMatchRuleFromRule(rule)
+
+	requestTags := Tag("op:read_gid2;rpc_op:Read;gid:12")
+	match := FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+
+	requestTags = "op:read_gid2;op:read_gid2;gid:12"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+
+	requestTags = "rpc_op:read;op:read_gid2;gid:12"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+
+	requestTags = Tag("op:read_gid2;gid:12;rpc_op")
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+
+	// Test negative matches with a literal prefix
+	rule = Rule{Pattern: "op:read;gid:123", Capacity: 10}
+	fastRule = getFastMatchRuleFromRule(rule)
+	requestTags = "op:read;gid:1234"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+}
+
+func (s *RuleParsingSuite) TestCompoundMatches() {
+	rule := Rule{Pattern: "source:*;op:*", Capacity: 10}
+	fastRule := getFastMatchRuleFromRule(rule)
+	requestTags := Tag(
+		"source:cape_yss_workers_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda_iad-async_task_worker_wrapper.py;op:insert_revision")
+	match := FastMatchCompoundRule(requestTags, fastRule)
+	require.True(s.T(), match)
+
+	requestTags = "source:filesystem.fs_job_worker_fs_job_worker-backfill_bin;op:read_ep"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.True(s.T(), match)
+
+	rule = Rule{Pattern: "traffic:batch_traffic;tclass:master;source:*", Capacity: 10}
+	fastRule = getFastMatchRuleFromRule(rule)
+	requestTags = "traffic:batch_traffic;tclass:master;source:cape_yss_workers_asyncTaskWorkerWrapperTopology_asyncTaskWorkerWrapperLambda_iad-async_task_worker_wrapper.py"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.True(s.T(), match)
+}
+
+func (s *RuleParsingSuite) TestLiteralPrefix() {
+	rule := Rule{Pattern: "source:cape;op:read_list", Capacity: 10}
+	fastRule := getFastMatchRuleFromRule(rule)
+	requestTags := Tag("source:cape;op:read_list")
+	match := FastMatchCompoundRule(requestTags, fastRule)
+	require.True(s.T(), match)
+
+	// Negative matches for literal prefix
+	requestTags = "source:foo;op:read_list"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
+
+	requestTags = "source:cape;op:read_listcomplex"
+	match = FastMatchCompoundRule(requestTags, fastRule)
+	require.False(s.T(), match)
 }

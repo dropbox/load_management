@@ -66,6 +66,25 @@ func FastMatch(t Tag, p string) bool {
 	return ts == p
 }
 
+// Function returns true if the passed in tags match the compound rule
+// Note: There's a small optimization to short circuit regex matching
+// if the literal prefix of the regex is not a prefix of the tags.
+// For eg: Consider the rule: "source:file_system;op:*". The regex pattern
+// we will use will look something like: "source:file_system;op:[[:alnum:]|_|\\-|\\.]*".
+// The literal prefix of the regex would look something like: "source:file_system;op"
+// and if the tags don't have the same prefix then we exit early.
+func FastMatchCompoundRule(t Tag, rule *fastMatchRule) bool {
+	ts := string(t)
+	prefix, complete := rule.regex.LiteralPrefix()
+	if strings.HasPrefix(ts, prefix) {
+		if complete {
+			return ts == prefix
+		}
+		return rule.regex.MatchString(ts)
+	}
+	return false
+}
+
 // Matches is a helper to put TagMatchesRule as a member of Tag
 func (t Tag) Matches(r Rule) bool {
 	return TagMatchesRule(t, r)
@@ -88,7 +107,7 @@ type compoundTagGenerator struct {
 // This holds the fragments derived from the given rule
 type fragmentedRule struct {
 	fragments []string
-	rule      Rule
+	rule      *fastMatchRule
 }
 
 // Point to a fragmented rule and a fragment within that rule
@@ -255,7 +274,7 @@ func newMatchState(fr *fragmentedRule) *matchState {
 
 // This helper returns a wrapper which can generate compount tags
 // from a set of basic tags.
-func newCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
+func newCompoundTagGenerator(rules []*fastMatchRule) *compoundTagGenerator {
 	ctg := &compoundTagGenerator{}
 	ctg.fragments = make(map[string][]fragmentPointer)
 	ctg.orderedFragments = make([]*fragmentedRule, 0, len(rules))

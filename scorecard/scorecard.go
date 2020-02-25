@@ -19,6 +19,7 @@ package scorecard
 
 import (
 	"fmt"
+	"regexp"
 )
 
 // A Tag captures a single attribute of a request.
@@ -44,6 +45,11 @@ func NoTags() []Tag {
 type Rule struct {
 	Pattern  string
 	Capacity uint
+}
+
+type fastMatchRule struct {
+	Rule
+	regex *regexp.Regexp
 }
 
 func (r *Rule) String() string {

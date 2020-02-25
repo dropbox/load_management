@@ -18,19 +18,39 @@ package scorecard
 
 import (
 	"hash/fnv"
+	"regexp"
+	"strings"
 	"sync"
 )
 
 // Implementation of the interfaces in scorecard.go.
 
-const numBuckets = 16 // Picked arbitrarily. Ideally should be tuned.
+const (
+	numBuckets = 16 // Picked arbitrarily. Ideally should be tuned.
+
+	// Rule patterns have wild cards (*). We use regex matching to have better
+	// performance and the below string is used to replace the wild card pattern in
+	// the rule while performing regex compilation.
+	//
+	// Note: We use * at the end instead of + because in certain cases it's possible due to bugs
+	// that we don't emit a value for a tag but we'd still like it to match with the existing rules.
+	// Eg: Rule: op:*;source:foo will be compiled using ->  regexp.Compile("^op:[a-z|A-Z|0-9|_|-]*;source:foo$")
+	// This will match the tag: op:;source:foo" whereas if we had used a + it wouldn't match op:;source:foo.
+	//
+	// Note: We can't blindly replace * in the rule with .* because it'll end up matching more than we desire.
+	// For eg if we replace * with .* in the regex then the rule: op:*;source:* will have the regex: op:.*;source:.*
+	// This will end up matching tags that look like: op:read_gid2;rpc:read;source:file_system. We don't want
+	// the regex to match this because it has an additional tag, value pair namely rpc:read in the middle. This is
+	// why we replace * with the expansion below.
+	starExpand = "[[:alnum:]|_|\\-|\\.]*"
+)
 
 type scorecardImpl struct {
 	// rulesMu protects rules and ctg.
 	// Those are pointers and fast to read and write, but under heavy concurrency
 	// contention becomes a problem, therefore RWMutex.
 	rulesMu sync.RWMutex
-	rules   []Rule
+	rules   []*fastMatchRule
 	ctg     *compoundTagGenerator
 
 	// To reduce lock contention, every `Tag` is mapped to one of `numBuckets` buckets which has
@@ -38,14 +58,22 @@ type scorecardImpl struct {
 	tagScoresBuckets [numBuckets]*tagScores
 }
 
-func getRulesAndTagGenerator(rules []Rule) ([]Rule, *compoundTagGenerator) {
+func getFastMatchRuleFromRule(rule Rule) *fastMatchRule {
+	ruleRegex, err := regexp.Compile("^" + strings.Replace(rule.Pattern, "*", starExpand, -1) + "$")
+	if err != nil {
+		panic(err)
+	}
+	return &fastMatchRule{Rule: rule, regex: ruleRegex}
+}
+
+func getRulesAndTagGenerator(rules []Rule) ([]*fastMatchRule, *compoundTagGenerator) {
 	// Dedup the rules
-	dedupedRules := make([]Rule, 0, len(rules))
+	dedupedRules := make([]*fastMatchRule, 0, len(rules))
 	ruleMap := make(map[string]struct{}, len(rules))
 	for _, rule := range rules {
 		// Add the rule if we have not seen it before
 		if _, ok := ruleMap[rule.Pattern]; !ok {
-			dedupedRules = append(dedupedRules, rule)
+			dedupedRules = append(dedupedRules, getFastMatchRuleFromRule(rule))
 			ruleMap[rule.Pattern] = struct{}{}
 		}
 	}
@@ -54,13 +82,13 @@ func getRulesAndTagGenerator(rules []Rule) ([]Rule, *compoundTagGenerator) {
 }
 
 func newScorecard(rules []Rule) Scorecard {
-	rules, ctg := getRulesAndTagGenerator(rules)
+	rule, ctg := getRulesAndTagGenerator(rules)
 	var tagScoresBuckets [numBuckets]*tagScores
 	for i := range tagScoresBuckets {
 		tagScoresBuckets[i] = &tagScores{tagToScore: make(map[Tag]uint)}
 	}
 	return &scorecardImpl{
-		rules:            rules,
+		rules:            rule,
 		ctg:              ctg,
 		tagScoresBuckets: tagScoresBuckets,
 	}
@@ -70,7 +98,9 @@ func (s *scorecardImpl) Rules() []Rule {
 	s.rulesMu.RLock()
 	defer s.rulesMu.RUnlock()
 	rules := make([]Rule, len(s.rules))
-	copy(rules, s.rules)
+	for idx, rule := range s.rules {
+		rules[idx] = rule.Rule
+	}
 	return rules
 }
 
@@ -78,10 +108,10 @@ func (r *Rule) isDefaultValue() bool {
 	return r.Pattern == "" && r.Capacity == 0
 }
 
-func ruleFor(rules []Rule, tag Tag) Rule {
+func ruleFor(rules []*fastMatchRule, tag Tag) Rule {
 	for _, rule := range rules {
-		if TagMatchesRule(tag, rule) {
-			return rule
+		if FastMatchCompoundRule(tag, rule) {
+			return rule.Rule
 		}
 	}
 	return Rule{}
@@ -122,9 +152,9 @@ func (s *scorecardImpl) TrackRequest(tags []Tag) *TrackingInfo {
 }
 
 func (s *scorecardImpl) Reconfigure(rules []Rule) {
-	rules, ctg := getRulesAndTagGenerator(rules)
+	rulesForFastMatching, ctg := getRulesAndTagGenerator(rules)
 	s.rulesMu.Lock()
-	s.rules = rules
+	s.rules = rulesForFastMatching
 	s.ctg = ctg
 	s.rulesMu.Unlock()
 }
