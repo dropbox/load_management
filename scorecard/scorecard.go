@@ -19,7 +19,6 @@ package scorecard
 
 import (
 	"fmt"
-	"regexp"
 )
 
 // A Tag captures a single attribute of a request.
@@ -39,17 +38,20 @@ func NoTags() []Tag {
 // pattern that are permitted in the system before subsequent requests become
 // isolated.
 //
-// The pattern specified by the rule set uses common shell syntax as supported
-// by Go's path.Match function.  If the rule does not parse according to these
-// conventions, it will be treated as an exact string match only.
+// Patterns comprise of one or more fragments. Each fragment is separated by a delimiter (';')
+// For eg: If you consider the pattern: op:*;source:file_system then it has two fragments
+// op:* and source:file_system.
+// Individual fragments can be matched in one of the two ways
+// 1. Match as a literal
+// 2. Match the prefix of the pattern as a literal till we hit '*'. Once we hit the wild card
+//    we will match everything till the end of the fragment.
+// Iff all the fragments within a pattern match will we say that the pattern itself matches the request.
+//
+// Note: Fragments can only have a wild card as the last character and will not work with wild cards in the middle
+// TODO: Add validation for rules before we instantiate a new scorecard
 type Rule struct {
 	Pattern  string
 	Capacity uint
-}
-
-type fastMatchRule struct {
-	Rule
-	regex *regexp.Regexp
 }
 
 func (r *Rule) String() string {
