@@ -18,7 +18,6 @@ package scorecard
 
 import (
 	"bytes"
-	"path"
 	"strings"
 )
 
@@ -37,52 +36,44 @@ func TagMatchesRule(t Tag, r Rule) bool {
 	return TagMatchesPattern(t, r.Pattern)
 }
 
-// TagMatchesPattern returns whether the tag matches the pattern according to the definition of
-// "match" in scorecard.go.
-//
-// A malformed rule that doesn't parse for path matching will only be used for
-// an exact match comparison.
+func advanceTagIndex(ts string, index int) int {
+	tsLen := len(ts)
+	i := index
+	for ; i < tsLen; i++ {
+		if ts[i] == ';' {
+			break
+		}
+	}
+	return i - 1
+}
+
+// Function returns true if the tag matches the pattern.
+// We keep two indexes one into the tag and the other into the pattern.
+// We advance the indexes if the characters at the index match. If they
+// don't match we return false. If the character in the pattern is a wildcard
+// then we simply advance the index till the end of the fragment which is either
+// the end of the entire string or till we hit the delimeter ';'
 func TagMatchesPattern(t Tag, p string) bool {
 	ts := string(t)
-	if ts == p {
-		return true
-	}
-	// error is not checked here as a bad pattern should never be installed as a
-	// rule.  The tooling for setting up a scorecard should validate every
-	// pattern.
-	match, err := path.Match(p, ts)
-	return err == nil && match
-}
-
-func FastMatch(t Tag, p string) bool {
-	ts := string(t)
+	tLen := len(ts)
 	pLen := len(p)
-	if pLen > 0 && p[pLen-1] == '*' {
-		// There is a wild card at the end of the pattern string.
-		// If the pattern is a prefix of the tag passed in
-		// then return true because the wildcard matches everything.
-		return strings.HasPrefix(ts, p[:pLen-1])
-	}
-	return ts == p
-}
-
-// Function returns true if the passed in tags match the compound rule
-// Note: There's a small optimization to short circuit regex matching
-// if the literal prefix of the regex is not a prefix of the tags.
-// For eg: Consider the rule: "source:file_system;op:*". The regex pattern
-// we will use will look something like: "source:file_system;op:[[:alnum:]|_|\\-|\\.]*".
-// The literal prefix of the regex would look something like: "source:file_system;op"
-// and if the tags don't have the same prefix then we exit early.
-func FastMatchCompoundRule(t Tag, rule *fastMatchRule) bool {
-	ts := string(t)
-	prefix, complete := rule.regex.LiteralPrefix()
-	if strings.HasPrefix(ts, prefix) {
-		if complete {
-			return ts == prefix
+	tIndex := 0 // Index into tag
+	pIndex := 0 // Index into pattern
+	for tIndex < tLen && pIndex < pLen {
+		if p[pIndex] == '*' {
+			// Advance the tag index till the end of this fragment
+			tIndex = advanceTagIndex(ts, tIndex)
+		} else if ts[tIndex] != p[pIndex] {
+			return false
 		}
-		return rule.regex.MatchString(ts)
+		pIndex++
+		tIndex++
 	}
-	return false
+
+	// If we've exhausted both the tag and the pattern return true
+	return pIndex == pLen && tIndex == tLen ||
+		// special case a wild card at the end of the pattern
+		(tIndex == tLen && pIndex == pLen-1 && p[pIndex] == '*')
 }
 
 // Matches is a helper to put TagMatchesRule as a member of Tag
@@ -107,7 +98,7 @@ type compoundTagGenerator struct {
 // This holds the fragments derived from the given rule
 type fragmentedRule struct {
 	fragments []string
-	rule      *fastMatchRule
+	rule      Rule
 }
 
 // Point to a fragmented rule and a fragment within that rule
@@ -223,7 +214,7 @@ func (ctg *compoundTagGenerator) combine(tags []Tag) []Tag {
 	// fragments first so a ruleset without compound rules pays near-zero cost
 	for pattern, fragmentPointers := range ctg.fragments {
 		for _, tag := range tags {
-			if FastMatch(tag, pattern) {
+			if TagMatchesPattern(tag, pattern) {
 				// Each fragment pointer associated with the matched pattern
 				// points to a rule and indexes the fragment in that rule.
 				for _, fragmentPointer := range fragmentPointers {
@@ -274,7 +265,7 @@ func newMatchState(fr *fragmentedRule) *matchState {
 
 // This helper returns a wrapper which can generate compount tags
 // from a set of basic tags.
-func newCompoundTagGenerator(rules []*fastMatchRule) *compoundTagGenerator {
+func newCompoundTagGenerator(rules []Rule) *compoundTagGenerator {
 	ctg := &compoundTagGenerator{}
 	ctg.fragments = make(map[string][]fragmentPointer)
 	ctg.orderedFragments = make([]*fragmentedRule, 0, len(rules))
