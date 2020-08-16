@@ -17,7 +17,6 @@ limitations under the License.
 package scorecard
 
 import (
-	"hash/fnv"
 	"sync"
 )
 
@@ -148,10 +147,24 @@ func (s *scorecardImpl) removeReference(tag Tag) {
 }
 
 func (s *scorecardImpl) bucket(tag Tag) *tagScores {
-	// This hash was picked arbitrarily. The fastest, crudest, hash is probably ideal.
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(tag))
-	return s.tagScoresBuckets[h.Sum32()%numBuckets]
+	return s.tagScoresBuckets[hash(tag)%numBuckets]
+}
+
+// constants lifted from fnv32a
+const (
+	offset32 = 2166136261
+	prime32  = 16777619
+)
+
+// hash computes the fnv32a hash sum of the tag.
+func hash(tag Tag) int {
+	var h uint32 = offset32
+	for _, c := range tag {
+		h ^= uint32(c)
+		h *= prime32
+	}
+
+	return int(h)
 }
 
 func (s *scorecardImpl) Inspect() map[Tag]uint {
