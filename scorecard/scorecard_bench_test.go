@@ -8,6 +8,7 @@ import (
 )
 
 func BenchmarkScorecard(b *testing.B) {
+	b.ReportAllocs()
 	b.SetParallelism(16)
 	rules := [][]Rule{
 		{{"op:*;cat:*", 5}, {"cat:*", 5}, {"dog:*", 5}},
@@ -44,6 +45,7 @@ func BenchmarkScorecard(b *testing.B) {
 // BenchmarkScorecardGenerate exercises a realistic case where there are many
 // tags matching a rule fragment and the production of AxB is costly.
 func BenchmarkScorecardGenerate(b *testing.B) {
+	b.ReportAllocs()
 	sc := NewDynamicScorecard([]Rule{{"op:*;dog:*", 1}, {"op:*;cat:*", 5}, {"cat:*", 5}, {"dog:*", 5}})
 	tags := []Tag{
 		Tag("op:cat_create_txn"),
@@ -422,7 +424,17 @@ var requests = [][]Tag{
 	{"source:metaserver_client_canary-paster", "client_id:cloud_docs", "op:gid_create_read_id", "op:txn", "traffic:live_traffic"},
 }
 
+func BenchmarkBucket(b *testing.B) {
+	b.ReportAllocs()
+	sc := NewDynamicScorecard([]Rule{{"op:*;dog:*", 1}, {"op:*;cat:*", 5}, {"cat:*", 5}, {"dog:*", 5}})
+	tag := Tag("op:cat_create_txn")
+	for i := 0; i < b.N; i++ {
+		_ = sc.(*scorecardImpl).bucket(tag)
+	}
+}
+
 func BenchmarkProdDataSetWithRelease(b *testing.B) {
+	b.ReportAllocs()
 	benchmarkSC := NewScorecard(benchmarkRules)
 	for i := 0; i < b.N; i++ {
 		for _, r := range requests {
@@ -436,6 +448,7 @@ func BenchmarkProdDataSetWithRelease(b *testing.B) {
 }
 
 func BenchmarkProdDataSetWithoutRelease(b *testing.B) {
+	b.ReportAllocs()
 	benchmarkSC := NewScorecard(benchmarkRules)
 	for i := 0; i < b.N; i++ {
 		for _, r := range requests {

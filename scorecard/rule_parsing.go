@@ -17,7 +17,6 @@ limitations under the License.
 package scorecard
 
 import (
-	"bytes"
 	"strings"
 )
 
@@ -148,7 +147,7 @@ func (ms *matchState) generate() []Tag {
 	// calculation
 	indices := make([]int, len(ms.matches))
 	tags := make([]Tag, 0, productSize(ms.matches))
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for !ms.permutationDone(indices) {
 		for i := 0; i < len(ms.matches); i++ {
 			if i > 0 {
