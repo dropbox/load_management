@@ -150,7 +150,7 @@ func (s *scorecardImpl) bucket(tag Tag) *tagScores {
 	return s.tagScoresBuckets[hash(tag)%numBuckets]
 }
 
-// constants lifted from fnv32a
+// constants lifted from fnv32a.
 const (
 	offset32 = 2166136261
 	prime32  = 16777619
