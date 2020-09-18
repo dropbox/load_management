@@ -157,14 +157,14 @@ const (
 )
 
 // hash computes the fnv32a hash sum of the tag.
-func hash(tag Tag) int {
+func hash(tag Tag) uint32 {
 	var h uint32 = offset32
 	for _, c := range tag {
 		h ^= uint32(c)
 		h *= prime32
 	}
 
-	return int(h)
+	return h
 }
 
 func (s *scorecardImpl) Inspect() map[Tag]uint {
