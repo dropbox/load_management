@@ -29,6 +29,10 @@ import (
 //      "op:update;gid:42"
 type Tag string
 
+func (t Tag) String() string {
+	return string(t)
+}
+
 // NoTags returns an empty list of tags.
 func NoTags() []Tag {
 	return []Tag{}
